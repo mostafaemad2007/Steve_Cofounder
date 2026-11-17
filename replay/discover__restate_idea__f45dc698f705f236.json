@@ -1,0 +1,6 @@
+{
+ "text": "{\n  \"restatement\": \"I want to create a general AI chatbot mobile app that can answer any question for anyone, with a nicer design than the existing chatbots. This is a digital product, specifically a software tool. It belongs to the category of online services. The target market is smartphone users everywhere. The founder values honesty and simplicity.\",\n  \"is_digital_product\": true,\n  \"product_type\": \"AI chatbot mobile app\",\n  \"excluded_category\": null,\n  \"open_questions\": [\n    \"How does the AI handle complex or ambiguous questions?\",\n    \"What is the specific design feature that makes it nicer than existing chatbots?\",\n    \"What is the expected user base and how will it be acquired?\",\n    \"What is the plan for ongoing development and updates?\"\n  ]\n}",
+ "model": "qwen3:1.7b",
+ "prompt_tokens": 960,
+ "completion_tokens": 166
+}

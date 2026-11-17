@@ -1,0 +1,6 @@
+{
+ "text": "{\n  \"one_off\": [\n    {\n      \"item\": \"AI chatbot development\",\n      \"cost\": 3000,\n      \"source_id\": \"S6\"\n    },\n    {\n      \"item\": \".app domain registration\",\n      \"cost\": 10,\n      \"source_id\": \"S1\"\n    }\n  ],\n  \"monthly\": [\n    {\n      \"item\": \"Cloudflare hosting\",\n      \"cost\": 5,\n      \"source_id\": \"S2\"\n    },\n    {\n      \"item\": \"SSL certificate\",\n      \"cost\": 5,\n      \"source_id\": \"S4\"\n    },\n    {\n      \"item\": \"Chatbot maintenance\",\n      \"cost\": 10,\n      \"source_id\": \"S6\"\n    }\n  ],\n  \"cheaper_options\": [\n    \"AI chatbot development\",\n    \"Cloudflare hosting\",\n    \"SSL certificate\"\n  ]\n}",
+ "model": "qwen3:1.7b",
+ "prompt_tokens": 2340,
+ "completion_tokens": 195
+}

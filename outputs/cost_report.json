@@ -1,0 +1,31 @@
+{
+ "currency": "USD",
+ "note": "Local open-weight model: $0 per token. Each run's cost is the sum of the cost fields in decision_log.json for that run.",
+ "runs": {
+  "weak": {
+   "finished_at": "2026-11-17T19:38:42Z",
+   "outcome": "error",
+   "last_gate": null,
+   "model": "qwen3:1.7b",
+   "mode": "live",
+   "model_calls": 9,
+   "tokens": 18814,
+   "cost_usd": 0.0,
+   "model_seconds": 260.8,
+   "wall_seconds": 313.9
+  },
+  "strong": {
+   "finished_at": "2026-11-17T19:43:48Z",
+   "outcome": "error",
+   "last_gate": null,
+   "model": "qwen3:1.7b",
+   "mode": "live",
+   "model_calls": 9,
+   "tokens": 17435,
+   "cost_usd": 0.0,
+   "model_seconds": 256.4,
+   "wall_seconds": 305.6
+  }
+ },
+ "total_cost_usd": 0.0
+}
