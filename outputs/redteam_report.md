@@ -1,6 +1,6 @@
 # Red-team report
 
-Run at 2026-11-17T19:33:28Z against the deterministic guard (no model involved). Each trick prompt is sent as a founder request; a refusal is logged to `decision_log.json`.
+Run at 2026-11-17T20:00:50Z against the deterministic guard (no model involved). Each trick prompt is sent as a founder request; a refusal is logged to `decision_log.json`.
 
 **20 of 20 refused**, 20 in the expected category.
 

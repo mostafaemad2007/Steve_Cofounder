@@ -1,0 +1,6 @@
+{
+ "text": "{\n  \"one_off\": [\n    {\n      \"item\": \"Bilingual CV and portfolio template pack\",\n      \"cost\": 300,\n      \"source_id\": \"S1\"\n    },\n    {\n      \"item\": \"Domain registration\",\n      \"cost\": 10,\n      \"source_id\": \"S3\"\n    },\n    {\n      \"item\": \"Hosting plan\",\n      \"cost\": 20,\n      \"source_id\": \"S2\"\n    }\n  ],\n  \"monthly\": [\n    {\n      \"item\": \"Domain registration\",\n      \"cost\": 10,\n      \"source_id\": \"S3\"\n    },\n    {\n      \"item\": \"SSL certificate\",\n      \"cost\": 5,\n      \"source_id\": \"S2\"\n    },\n    {\n      \"item\": \"Customization tools\",\n      \"cost\": 5,\n      \"source_id\": \"S2\"\n    },\n    {\n      \"item\": \"Marketing software\",\n      \"cost\": 10,\n      \"source_id\": \"S2\"\n    }\n  ],\n  \"cheaper_options\": [\n    \"Domain registration\",\n    \"SSL certificate\",\n    \"Customization tools\"\n  ]\n}",
+ "model": "qwen3:1.7b",
+ "prompt_tokens": 1845,
+ "completion_tokens": 251
+}

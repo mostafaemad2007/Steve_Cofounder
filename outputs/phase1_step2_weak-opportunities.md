@@ -4,9 +4,9 @@
 
 **Verdict: PROMISING**
 
-- High demand for AI chatbots, moderate competition, good founder fit with a clear value proposition.
-- Moderate demand for B2B sales AI chatbots, high competition from existing B2B chatbots, moderate founder fit.
-- High demand for customer support AI chatbots, low competition, good founder fit with a clear value proposition.
+- The founder's idea has strong demand and moderate competition room, but the market is crowded with established players.
+- The AI chatbot for CRM and lead pipelines has moderate demand and competition room, but the founder's values may not align well with the complex requirements of CRM systems.
+- The AI chatbot for document processing has high demand and moderate competition room, but the founder's focus on simplicity may limit its appeal.
 
 ## Options compared
 
@@ -14,23 +14,22 @@ Scores are 1 to 5; the total is added up by code. Scores are the model's judgeme
 
 | Option | Demand | Room vs competitors | Founder fit | Total | Note |
 |---|---|---|---|---|---|
-| Founder idea | 5 | 3 | 4 | **12** | High demand for AI chatbots, moderate competition, good founder fit with a clear value proposition. |
-| AI chatbot for B2B sales | 3 | 4 | 3 | **10** | Moderate demand, high competition from existing B2B chatbots, moderate founder fit due to niche focus. |
-| AI chatbot for customer support | 4 | 2 | 4 | **10** | High demand for customer support AI tools, low competition, good founder fit with a clear value proposition. |
+| Founder idea | 4 | 4 | 4 | **12** | A promising idea with strong demand but limited competition room due to the general-purpose nature of the product. |
+| AI chatbot for document processing | 4 | 3 | 4 | **11** | High demand and moderate competition room, aligns well with the founder's values and technical capabilities. |
+| AI chatbot for CRM and lead pipelines | 3 | 3 | 4 | **10** | Moderate demand and competition room, but the founder's focus on simplicity and honesty may not align well with the complex requirements of CRM systems. |
 
 ## Competitors
 
-- **ChatGPT**: AI chatbot with natural language processing and integration with Google ecosystem. ([source](https://aiunderstanding.org/tools/best/chatbots))
-- **Claude**: AI chatbot for long documents and policy drafts with advanced natural language understanding. ([source](https://aiunderstanding.org/tools/best/chatbots))
-- **Gemini**: AI chatbot optimized for Google ecosystem users with advanced AI capabilities. ([source](https://aiunderstanding.org/tools/best/chatbots))
+- **ChatGPT**: General-purpose AI chatbot for daily assistant workflows ([source](https://aiunderstanding.org/tools/best/chatbots))
+- **Claude**: AI chatbot for long documents and policy drafts ([source](https://aiunderstanding.org/tools/best/chatbots))
+- **Gemini**: AI chatbot for Google ecosystem users ([source](https://aiunderstanding.org/tools/best/chatbots))
 
 ## Evidence
 
-- CLAIM: AI chatbots are in high demand, with 5 out of 5 rating for founder idea. (source: [15 Chatbot UI Design Best Practices That Convert [2026]](https://www.conferbot.com/blog/chatbot-ui-design-best-practices))
-- CLAIM: B2B sales AI chatbots have moderate demand, with 3 out of 5 rating for founder idea. (source: [Best AI Chatbots (2026) — ChatGPT, Claude & Gemini](https://aiunderstanding.org/tools/best/chatbots))
-- CLAIM: Customer support AI chatbots have high demand, with 4 out of 5 rating for founder idea. (source: [15 Chatbot UI Design Best Practices That Convert [2026]](https://www.conferbot.com/blog/chatbot-ui-design-best-practices))
+- CLAIM: The founder's idea has strong demand and moderate competition room, but the market is crowded with established players. (source: [Best AI Chatbots (2026) — ChatGPT, Claude & Gemini](https://aiunderstanding.org/tools/best/chatbots))
+- CLAIM: The AI chatbot for CRM and lead pipelines has moderate demand and competition room, but the founder's values may not align well with the complex requirements of CRM systems. (source: [Best AI Chatbots (2026) — ChatGPT, Claude & Gemini](https://aiunderstanding.org/tools/best/chatbots))
+- CLAIM: The AI chatbot for document processing has high demand and moderate competition room, but the founder's focus on simplicity may limit its appeal. (source: [Best AI Chatbots (2026) — ChatGPT, Claude & Gemini](https://aiunderstanding.org/tools/best/chatbots))
 
 ## Sources
 
-- [15 Chatbot UI Design Best Practices That Convert [2026]](https://www.conferbot.com/blog/chatbot-ui-design-best-practices)
 - [Best AI Chatbots (2026) — ChatGPT, Claude & Gemini](https://aiunderstanding.org/tools/best/chatbots)
