@@ -7,6 +7,7 @@
     cost                  the "Cost per run" line for the README, from outputs/cost_report.json
     search "QUERY"        try Steve's live web search once and show what he would read
     fetch-source URL      save one public page into sources/ (optional; needs internet)
+    check                 test everything Steve needs on this laptop and say what to fix
     status                what the model layer can reach
     pending / approve / reject / mockflow   approvals and the standalone sale-to-cash flow
 
@@ -84,6 +85,7 @@ def main(argv=None) -> None:
     search.add_argument("query")
     fetch = sub.add_parser("fetch-source")
     fetch.add_argument("url")
+    sub.add_parser("check")
     sub.add_parser("status")
     sub.add_parser("pending")
     approve = sub.add_parser("approve")
@@ -111,6 +113,14 @@ def main(argv=None) -> None:
               "are cleared, then the red-team report, the weak run and the strong run are produced.")
         if input("Continue? [y/n]> ").strip().lower() not in ("y", "yes"):
             return
+        llm = LLM()
+        ok, why = llm.model_listed()
+        if ok:
+            print("Loading Steve's model (up to a couple of minutes the first time)...")
+            ok, why, _ = llm.warm_up()
+        if not ok:
+            raise SystemExit(f"Steve's model is not ready, so nothing was changed.\n{why}\n"
+                             "Run `python -m venturegate check` to see everything that needs fixing.")
         DecisionLogger().reset()
         clear_generated_outputs(out_dir)
         from .redteam import run_redteam
@@ -146,6 +156,8 @@ def main(argv=None) -> None:
             print(f"Saved: {fetch_source(args.url)}")
         except Exception as exc:          # network errors, bad pages
             raise SystemExit(f"Could not save {args.url}: {exc}")
+    elif args.command == "check":
+        raise SystemExit(0 if run_check() else 1)
     elif args.command == "status":
         llm = LLM()
         print(f"model={llm.model}  url={llm.url}  mode={llm.mode}  available={llm.is_available()}  "
@@ -165,6 +177,69 @@ def main(argv=None) -> None:
             raise SystemExit(f"Refused: {exc}\n\nThe founder has to open the mocked store first:\n"
                              "  python -m venturegate approve phase5_open_store")
         print(json.dumps({k: v for k, v in result.items() if k not in ("steps", "reconciliation")}, indent=1))
+
+
+def run_check() -> bool:
+    """Everything a live run needs, tested in order, each with the fix if it fails."""
+    import tempfile
+    import time
+
+    from .websearch import WebSourceLibrary
+    results = []
+
+    def report(ok, name, detail):
+        results.append(ok)
+        print(f"[{'PASS' if ok else 'FAIL'}] {name}: {detail}")
+
+    llm = LLM()
+    print(f"Checking Steve on this computer (model {llm.model}, server {llm.url})\n")
+    ok, why = llm.model_listed()
+    report(ok, "Model server and model download", "ready" if ok else why)
+    if ok:
+        print("       loading the model and asking a one-word question (can take a minute)...")
+        ok, why, seconds = llm.warm_up()
+        report(ok, "Model answers", f"answered in {seconds:.0f} s" if ok else why)
+        if ok:
+            started = time.monotonic()
+            try:
+                reply = llm.chat_json(agent="check", action="check_json",
+                                      prompt="Give one short product idea for students.",
+                                      schema={"type": "object", "properties": {"idea": {"type": "string", "minLength": 3}},
+                                              "required": ["idea"]})
+                report(True, "Model writes structured answers",
+                       f"{time.monotonic() - started:.0f} s ({reply['idea'][:60]!r}). Each step of a run takes "
+                       "roughly this long, or a few times longer for big steps.")
+            except Exception as exc:                         # noqa: BLE001 - report anything
+                report(False, "Model writes structured answers", str(exc)[:300])
+    scratch = Path(tempfile.mkdtemp())
+    if config.get("WEB_SEARCH", "true").lower() in ("0", "false", "no", "off"):
+        report(True, "Web search", "switched off (WEB_SEARCH=false): Steve uses pages saved in sources/")
+    else:
+        library = WebSourceLibrary(logger=DecisionLogger(scratch / "log.json"), cache_dir=scratch)
+        provider, found = library.search("CV templates for graduates")
+        report(bool(found), "Web search", f"{provider}, {len(found)} result(s)" if found else
+               "no results: check the internet connection. Without it, claims become ASSUMPTION and Gate 1 stops.")
+    for label, target in (("Decision log", config.path("DECISION_LOG", "decision_log.json")),
+                          ("Outputs folder", config.path("OUTPUT_DIR", "outputs") / ".write-test"),
+                          ("Replay folder", config.path("REPLAY_DIR", "replay") / ".write-test")):
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.name == ".write-test":
+                target.write_text("ok", encoding="utf-8")
+                target.unlink()
+            else:
+                with open(target, "a", encoding="utf-8"):
+                    pass
+            if target.name != ".write-test" and target.exists():
+                DecisionLogger(target).read()
+            report(True, label, "can be written")
+        except Exception as exc:                             # noqa: BLE001
+            report(False, label, f"cannot be written ({exc}). If decision_log.json became a folder, delete it "
+                                 "and run: git restore decision_log.json")
+    passed = all(results)
+    print("\n" + ("Everything Steve needs works. You can start a run." if passed else
+                  "Fix the FAIL lines above, then run this check again."))
+    return passed
 
 
 def cost_line() -> str:

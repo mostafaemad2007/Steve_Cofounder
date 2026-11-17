@@ -16,6 +16,7 @@ The first start downloads the local model (`qwen3:4b`, about 2.5 GB; no GPU need
 
 From a terminal instead: `docker compose run --rm app python -m venturegate run --idea examples/weak_idea.yaml`.
 Run the tests: `docker compose run --rm app pytest`.
+If Steve does not start, run `docker compose run --rm app python -m venturegate check`: it tests the model, web search and files, and says what to fix.
 
 ## What works and what is mocked
 

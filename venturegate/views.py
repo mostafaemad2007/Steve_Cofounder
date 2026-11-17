@@ -117,6 +117,11 @@ font:600 13px "Pixelify Sans",sans-serif;border:2px solid var(--vg-line);backgro
 .vg-step-head h2{font-size:15px}
 .vg-step.current .vg-step-head h2{font-size:18px}
 .vg-files{display:flex;flex-wrap:wrap;gap:6px}
+.vg-working{flex-direction:row!important;align-items:center;gap:10px!important;border-style:dashed}
+.vg-dots{display:inline-flex;gap:4px;margin-left:auto}
+.vg-dots i{width:8px;height:8px;background:var(--vg-grass);animation:vg-blink 1.2s infinite}
+.vg-dots i:nth-child(2){animation-delay:.2s}.vg-dots i:nth-child(3){animation-delay:.4s}
+@keyframes vg-blink{0%,100%{opacity:.25}50%{opacity:1}}
 .vg-line{font-size:13px;color:#4A433A;padding:2px 4px}
 .vg-line.refusal{color:var(--vg-stop-dark)} .vg-line.notice{color:var(--vg-gold-ink)}
 .vg-gate{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
@@ -413,6 +418,12 @@ def done_html(done: Done) -> str:
             f'every fact with its source, and the cost. See the reports on the right.</p></section>')
 
 
+def working_html() -> str:
+    return (f'<article class="vg-card vg-step vg-working" role="status">{emblem(18)}<span><b>Steve is working on this '
+            f'step</b>. Thinking and searching can take a minute or two on a laptop.</span>'
+            f'<span class="vg-dots" aria-hidden="true"><i></i><i></i><i></i></span></article>')
+
+
 def timeline_html(events: list, pending: Request | None, done: Done | None) -> str:
     parts, last_step = [], None
     for index, ev in enumerate(events):
@@ -436,6 +447,8 @@ def timeline_html(events: list, pending: Request | None, done: Done | None) -> s
             parts.append(f'<div class="vg-line {e(ev.kind)}">{_tagged(ev.text)}{files_html(ev.files)}</div>')
     if done is not None:
         parts.append(done_html(done))
+    elif pending is None and events:
+        parts.append(working_html())
     return f'<div class="vg vg-timeline" aria-live="polite">{"".join(parts)}</div>'
 
 

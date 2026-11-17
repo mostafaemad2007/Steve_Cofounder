@@ -210,6 +210,16 @@ START_INTRO = ('<div class="vg" style="display:flex;align-items:center;gap:14px"
 
 
 def build_ui(app: ConsoleApp | None = None):
+    import warnings
+
+    with warnings.catch_warnings():
+        # Gradio 5 prints notices about its next version; they are not errors and only confuse the log.
+        warnings.simplefilter("ignore", DeprecationWarning)
+        warnings.simplefilter("ignore", UserWarning)
+        return _build_ui(app)
+
+
+def _build_ui(app: ConsoleApp | None = None):
     from functools import partial
 
     import gradio as gr

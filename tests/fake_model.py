@@ -132,6 +132,10 @@ class FakeModel:
         self.prompts.append(payload["messages"][-1]["content"])
         if self.overrides.get(action):
             reply = self.overrides[action].pop(0)
+        elif action == "check_json":
+            reply = {"idea": "A shared notes app for study groups"}
+        elif action not in RESPONSES:          # e.g. the warm-up ("Say OK") has no schema
+            reply = "OK"
         else:
             reply = copy.deepcopy(RESPONSES[action])
         content = reply if isinstance(reply, str) else json.dumps(reply, ensure_ascii=False)

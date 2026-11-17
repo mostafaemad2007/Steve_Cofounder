@@ -131,6 +131,16 @@ class Pipeline:
                     else f"Steve uses the {len(self.ctx.sources)} evidence page(s) saved in sources/")
         yield Say(f"Steve is starting{mode}. {evidence}. The waitlist numbers in this run are [SIMULATED] sample "
                   f"data ('{b.mock_scenario}').")
+        if self.llm.mode == "live" and self.llm.uses_ollama:
+            ok, why = self.llm.model_listed()
+            if ok:
+                yield Say("Steve is waking up: loading his model. The first time can take a minute or two.", kind="info")
+                ok, why, seconds = self.llm.warm_up()
+                self.logger.log("orchestrator", "warm_up_model", llm_model=self.llm.model, ok=ok,
+                                seconds=round(seconds, 1))
+            if not ok:
+                self.logger.log("orchestrator", "model_not_ready", reason=why[:200])
+                return Done("error", why)
         if not live_web and len(self.ctx.sources) < self.gates.thresholds["G1_discover"]["min_sourced_claims"]:
             yield Say(f"Only {len(self.ctx.sources)} page(s) are saved in sources/. Gate 1 needs "
                       f"{self.gates.thresholds['G1_discover']['min_sourced_claims']} claims backed by real "

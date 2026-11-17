@@ -78,6 +78,25 @@ def _ollama_transport(url: str, payload: dict, timeout: float) -> dict:
         raise ModelUnavailable(str(exc)) from exc
 
 
+def explain_model_error(text: str, model: str) -> str:
+    """Turn a raw model-server error into what happened and how to fix it."""
+    t = (text or "").lower()
+    if "not found" in t or "pull" in t:
+        return (f"Steve's model ({model}) is not downloaded yet. Keep `docker compose up` running until its download "
+                f"finishes, or download it again with: docker compose run --rm model-pull")
+    if "memory" in t or "oom" in t or "killed" in t:
+        return ("The laptop gave Steve's model too little memory to start. Close other programs and try again. If it "
+                "still fails, give Docker more memory (Docker Desktop: Settings > Resources, or a .wslconfig file "
+                "with memory=6GB), or use the smaller model by putting MODEL=qwen3:1.7b in a .env file.")
+    if "timed out" in t or "timeout" in t:
+        return ("Steve's model took too long to answer. The laptop may be busy: close other programs, or set "
+                "LLM_TIMEOUT=1800 in a .env file.")
+    if any(s in t for s in ("refused", "name or service", "nodename", "resolution", "unreachable", "errno 111",
+                            "no route", "connection reset", "remote end closed")):
+        return "Steve's model server (Ollama) is not running. Start everything with: docker compose up"
+    return f"Steve's model server returned an error: {text[:200]}"
+
+
 def replay_key(agent: str, action: str, prompt: str, system: str = "") -> str:
     digest = hashlib.sha256(f"{agent}\n{action}\n{system}\n{prompt}".encode("utf-8")).hexdigest()[:16]
     safe_action = re.sub(r"[^a-zA-Z0-9_-]", "-", action)[:60]
@@ -140,8 +159,9 @@ class LLM:
         path = self._replay_path(key)
         if not path.exists():
             raise ModelUnavailable(
-                f"No local model could be reached and no recorded reply exists for this step ({key}). "
-                "Start the model with `docker compose up`, or replay one of the example briefs.")
+                "There is no recorded run to replay for this step. Replay only works for a brief that was run "
+                "live before, unchanged (for example the two example ideas after the demo run). Choose Live instead, "
+                "or start the model with: docker compose up")
         data = json.loads(path.read_text(encoding="utf-8"))
         self.used_replay = True
         return LLMResult(text=data["text"], model=data.get("model"), mode="replay",
@@ -158,8 +178,11 @@ class LLM:
                 result = self._live(prompt, system, schema)
                 self._record(key, result)
             except ModelUnavailable as exc:
-                notice = (f"The local model could not be reached ({str(exc)[:120]}). "
-                          f"Continuing in {REPLAY_TAG} from a recorded run.")
+                if not self._replay_path(key).exists():
+                    self.logger.log("llm", "model_error", reason=str(exc)[:200])
+                    raise ModelUnavailable(explain_model_error(str(exc), self.model)) from exc
+                notice = (f"{explain_model_error(str(exc), self.model)} Continuing in {REPLAY_TAG} from a "
+                          "recorded run of this same step.")
                 if notice not in self.notices:
                     self.notices.append(notice)
                 self.logger.log("llm", "fallback_to_replay", reason=str(exc)[:200])
@@ -223,15 +246,37 @@ class LLM:
                          seconds=seconds)
 
     # -- status -----------------------------------------------------------
-    def is_available(self) -> bool:
-        """True when Ollama is up and the configured model is pulled."""
+    @property
+    def uses_ollama(self) -> bool:
+        return self.transport is _ollama_transport
+
+    def model_listed(self) -> tuple[bool, str]:
+        """Is the model server up, and is the model downloaded? (fast; does not load the model)"""
         try:
-            with urllib.request.urlopen(self.url.rstrip("/") + "/api/tags", timeout=3) as response:
+            with urllib.request.urlopen(self.url.rstrip("/") + "/api/tags", timeout=5) as response:
                 tags = json.loads(response.read().decode("utf-8"))
-        except Exception:
-            return False
-        wanted = self.model.split(":")[0]
-        return any(m.get("name", "").split(":")[0] == wanted for m in tags.get("models", []))
+        except Exception as exc:                                  # noqa: BLE001 - any failure means "not up"
+            return False, explain_model_error(str(exc) or "connection refused", self.model)
+        names = [m.get("name", "") for m in tags.get("models", [])]
+        wanted = self.model if ":" in self.model else self.model + ":latest"
+        if not any(n == wanted or n.split(":")[0] == self.model for n in names):
+            return False, explain_model_error("model not found", self.model)
+        return True, "ready"
+
+    def warm_up(self) -> tuple[bool, str, float]:
+        """Load the model with a one-token answer, so memory problems show up before the run starts."""
+        started = time.monotonic()
+        try:
+            self.transport(self.url, {"model": self.model, "messages": [{"role": "user", "content": "Say OK"}],
+                                      "stream": False, "think": False,
+                                      "options": {**self.options, "num_predict": 1}}, min(self.timeout, 600))
+        except ModelUnavailable as exc:
+            return False, explain_model_error(str(exc), self.model), time.monotonic() - started
+        return True, "ready", time.monotonic() - started
+
+    def is_available(self) -> bool:
+        """True when Ollama is up and the configured model is downloaded."""
+        return self.model_listed()[0]
 
     def recorded_steps(self) -> int:
         return len(list(self.replay_dir.glob("*.json"))) if self.replay_dir.exists() else 0

@@ -323,8 +323,9 @@ def test_the_model_going_down_ends_the_run_cleanly(tmp_path):
         return model(url, payload, timeout)
     h = Harness(tmp_path, "strong", transport=flaky)
     done = h.run()
-    assert done.outcome == "error" and "docker compose up" in done.summary
-    assert "fallback_to_replay" in h.actions() and "end_run" in h.actions()
+    assert done.outcome == "error" and "Ollama) is not running" in done.summary and "docker compose up" in done.summary
+    assert "model_error" in h.actions() and "end_run" in h.actions()
+    assert "fallback_to_replay" not in h.actions()         # nothing recorded, so no pretend switch to replay
     assert json.loads((h.out / "cost_report.json").read_text())["runs"]["strong"]["outcome"] == "error"
 
 

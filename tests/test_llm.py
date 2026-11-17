@@ -95,10 +95,35 @@ def test_falling_back_to_replay_is_announced_and_logged(env):
     assert any(e["action"] == "fallback_to_replay" for e in env["log"].read())
 
 
-def test_no_model_and_no_recording_fails_loudly(env):
+def test_no_model_and_no_recording_fails_loudly_with_the_real_cause(env):
     llm = make(env, model_is_down)
     with pytest.raises(ModelUnavailable, match="docker compose up"):
         llm.chat(agent="discover", action="verdict", prompt="never recorded")
+    assert llm.notices == []                               # no misleading "switching to replay"
+    assert env["log"].read()[-1]["action"] == "model_error"
+
+
+@pytest.mark.parametrize("raw, expected", [
+    ('HTTP 404: model "qwen3:4b" not found, try pulling it first', "not downloaded yet"),
+    ("HTTP 500: model requires more system memory (4.6 GiB) than is available (3.1 GiB)", "too little memory"),
+    ("<urlopen error [Errno 111] Connection refused>", "is not running"),
+    ("<urlopen error [Errno -2] Name or service not known>", "is not running"),
+    ("timed out", "took too long"),
+])
+def test_model_errors_are_explained_with_a_fix(env, raw, expected):
+    def failing(url, payload, timeout):
+        raise ModelUnavailable(raw)
+    with pytest.raises(ModelUnavailable, match=expected):
+        make(env, failing).chat(agent="discover", action="verdict", prompt="x")
+
+
+def test_warm_up_reports_memory_problems_before_a_run(env):
+    def oom(url, payload, timeout):
+        assert payload["options"]["num_predict"] == 1
+        raise ModelUnavailable("HTTP 500: model requires more system memory (4.6 GiB) than is available")
+    ok, why, _ = make(env, oom).warm_up()
+    assert not ok and "too little memory" in why
+    assert make(env, working_model).warm_up()[0]
 
 
 # == JSON =====================================================================
