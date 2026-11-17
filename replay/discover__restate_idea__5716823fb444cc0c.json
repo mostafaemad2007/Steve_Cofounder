@@ -1,6 +1,0 @@
-{
- "text": "{\n  \"restatement\": \"The founder's idea is to create a bilingual Arabic and English CV and portfolio template pack for Egyptian fresh computer science and engineering graduates, including worked examples, to help them apply to junior software and data jobs.\",\n  \"is_digital_product\": true,\n  \"product_type\": \"template pack\",\n  \"excluded_category\": null,\n  \"open_questions\": [\n    \"What specific features or functionalities does the template pack include?\",\n    \"Are there any specific industries or job roles the templates are targeted at?\",\n    \"How will the templates be distributed or made available to users?\",\n    \"What is the expected usage scenario for the templates?\"\n  ]\n}",
- "model": "qwen3:1.7b",
- "prompt_tokens": 973,
- "completion_tokens": 139
-}

@@ -1,6 +1,0 @@
-{
- "text": "{\n  \"competitors\": [\n    \"ArabicCV.com - Arabic and English CV templates for job applications\",\n    \"JobReadyTemplates - Portfolio and CV templates for software and data jobs\"\n  ],\n  \"market\": [\n    \"Egyptian fresh computer science and engineering graduates\",\n    \"Junior software and data job market in Egypt\"\n  ],\n  \"legal\": [\n    \"Trademark registration for Arabic and English CV templates\",\n    \"Licensing for platform terms and content licensing\"\n  ],\n  \"costs\": [\n    \"Hosting costs for a website or platform\",\n    \"Domain registration costs\"\n  ],\n  \"pricing\": [\n    \"Competitor pricing for similar CV and portfolio templates\",\n    \"Cost of tools and services needed for development\"\n  ]\n}",
- "model": "qwen3:1.7b",
- "prompt_tokens": 1153,
- "completion_tokens": 156
-}
