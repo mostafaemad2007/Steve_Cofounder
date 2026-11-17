@@ -5,7 +5,8 @@
     demo                  the committed demo: red-team report, then the weak run, then the strong run
     redteam               write outputs/redteam_report.md
     cost                  the "Cost per run" line for the README, from outputs/cost_report.json
-    fetch-source URL      save one public page into sources/ (needs internet, no API key)
+    search "QUERY"        try Steve's live web search once and show what he would read
+    fetch-source URL      save one public page into sources/ (optional; needs internet)
     status                what the model layer can reach
     pending / approve / reject / mockflow   approvals and the standalone sale-to-cash flow
 
@@ -79,6 +80,8 @@ def main(argv=None) -> None:
     sub.add_parser("demo")
     sub.add_parser("redteam")
     sub.add_parser("cost")
+    search = sub.add_parser("search")
+    search.add_argument("query")
     fetch = sub.add_parser("fetch-source")
     fetch.add_argument("url")
     sub.add_parser("status")
@@ -123,6 +126,20 @@ def main(argv=None) -> None:
         print(f"{report['refused']} of {report['total']} refused. Report: {report['report']}")
     elif args.command == "cost":
         print(cost_line())
+    elif args.command == "search":
+        import tempfile
+        from .websearch import WebSourceLibrary
+        scratch = Path(tempfile.mkdtemp())           # a check, not a run: keep it out of decision_log.json
+        library = WebSourceLibrary(mode="live", logger=DecisionLogger(scratch / "log.json"), cache_dir=scratch)
+        provider, results = library.search(args.query)
+        print(f"Search provider: {provider}. {len(results)} result(s).")
+        excerpts = library.relevant(args.query)
+        for ex in excerpts:
+            print(f"\n[{ex.sid}] {ex.source.title}\n     {ex.source.url}\n     {' '.join(ex.text.split())[:200]}...")
+        for notice in library.notices:
+            print("\nNote:", notice)
+        print(f"\n{len(library.pages)} page(s) read. "
+              + ("Web search works." if excerpts else "No usable pages: check the internet connection."))
     elif args.command == "fetch-source":
         from .sources import fetch_source
         try:

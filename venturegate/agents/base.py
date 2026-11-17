@@ -22,9 +22,19 @@ from ..ledger import EvidenceLedger
 from ..llm import LLM
 from ..logger import DecisionLogger
 from ..outputs import OutputWriter
-from ..sources import Excerpt, SourceLibrary
+from ..llm import BadModelOutput
+from ..schema import arr, obj, s
+from ..sources import Excerpt, SourceLibrary, tokens
 
 PROMPT_DIR = config.ROOT / "prompts"
+SEARCH_TOPICS = {
+    "competitors": "existing competitors and alternatives, and what they offer",
+    "market": "the target market: size, demand, behaviour, language and purchasing power",
+    "legal": "trademarks, licences and platform terms relevant to building and selling it",
+    "costs": "prices of the hosting, domain, tools and services needed to run it",
+    "pricing": "what competitors charge for similar products",
+}
+SEARCH_PLAN = obj({topic: arr(s(3), 1, 2) for topic in SEARCH_TOPICS})
 SOURCE_ID = re.compile(r"^\[?\s*[sS]\s*(\d+)\s*\]?$")
 
 
@@ -119,6 +129,42 @@ class Agent:
                                       system=self.system, schema=schema,
                                       sources=[ex.source.url for ex in excerpts], check=check)
         return data, {ex.sid: ex for ex in excerpts}
+
+    # -- web research ------------------------------------------------------
+    def research(self, topic: str, fallback: str):
+        """What to search for. With saved pages only, the fallback query is used as is. With live web
+        search, Steve's model plans short queries once per run (agent discover, action
+        plan_web_searches); a missing or failed plan falls back to keywords from the fallback query."""
+        if not getattr(self.ctx.sources, "live", False):
+            return fallback
+        plan = self.ctx.state.get("search_queries")
+        if plan is None:
+            plan = self._plan_searches()
+            self.ctx.state["search_queries"] = plan
+        queries = plan.get(topic) or []
+        return queries or [" ".join(tokens(fallback)[:8])]
+
+    def _plan_searches(self) -> dict:
+        topics = "\n".join(f"- {name}: {about}" for name, about in SEARCH_TOPICS.items())
+        task = ("Plan web searches to find evidence about this idea. For each topic give one or two short "
+                "search-engine queries of 3 to 8 words, as a person would type them, specific to the idea and the "
+                "target market. No quotes, no operators, no URLs.\n" + topics)
+        try:
+            data = self.ctx.llm.chat_json(agent="discover", action="plan_web_searches",
+                                          prompt=self.context_block() + "\n\nTASK\n" + task,
+                                          system=load_prompt("discover", self.ctx.brief.language_name),
+                                          schema=SEARCH_PLAN)
+        except BadModelOutput:
+            return {}
+        plan = {}
+        for topic in SEARCH_TOPICS:
+            cleaned = []
+            for q in data.get(topic, []):
+                q = " ".join(str(q).replace('"', " ").split()[:10])
+                if len(q) >= 3 and q.lower() not in [c.lower() for c in cleaned]:
+                    cleaned.append(q)
+            plan[topic] = cleaned
+        return plan
 
     # -- evidence ---------------------------------------------------------
     @staticmethod

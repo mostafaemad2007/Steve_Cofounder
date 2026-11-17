@@ -77,11 +77,20 @@ def parse_source_file(path: Path) -> Source | None:
 
 
 class SourceLibrary:
-    def __init__(self, folder: Path | None = None, chunk_chars: int = 700):
+    """Pages saved in sources/ (or a given list of Source objects), searchable by TF-IDF."""
+
+    live = False
+
+    def __init__(self, folder: Path | None = None, chunk_chars: int = 700, sources: list[Source] | None = None):
         self.folder = Path(folder) if folder else config.path("SOURCES_DIR", "sources")
         self.sources: list[Source] = []
         self.skipped: list[str] = []
-        if self.folder.is_dir():
+        self.notices: list[str] = []
+        if sources is not None:
+            for source in sources:
+                if source.url not in {s.url for s in self.sources}:
+                    self.sources.append(source)
+        elif self.folder.is_dir():
             for path in sorted(self.folder.iterdir()):
                 if not path.is_file() or path.suffix.lower() not in (".md", ".txt"):
                     continue
@@ -114,6 +123,8 @@ class SourceLibrary:
         """Top-k excerpts by TF-IDF overlap with the query. Deterministic, so a replayed run sees
         exactly the same excerpts. At most `per_source` excerpts come from any one page, so a single
         long page cannot crowd out the rest of the evidence."""
+        if isinstance(query, (list, tuple)):
+            query = " ".join(query)
         query_terms = set(tokens(query))
         if not query_terms or not self.chunks:
             return []

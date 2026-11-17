@@ -16,6 +16,9 @@ SCRIPT_QUESTIONS = ["Tell me about the last time you updated your CV.", "What di
                     "Where did you look for templates last time?", "What happened after you sent it?"]
 
 RESPONSES = {
+    "plan_web_searches": {"competitors": ["CV templates Egypt graduates", "bilingual resume templates"],
+                          "market": ["Egypt engineering graduates jobs"], "legal": ["resume template licence terms"],
+                          "costs": ["static hosting price per month"], "pricing": ["CV template pack price"]},
     "restate_idea": {
         "restatement": "A bilingual Arabic and English CV template pack for Egyptian fresh graduates "
                        "applying to junior tech jobs.",

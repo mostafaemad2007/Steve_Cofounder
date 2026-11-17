@@ -36,7 +36,7 @@ class CommercialAgent(Agent):
 
         def build(fb):
             d, _ = self.ask("pricing_options", task, PRICING, feedback=fb, check=check,
-                            query=f"{b.idea} price pricing competitors {b.currency}")
+                            query=self.research("pricing", f"{b.idea} price pricing competitors {b.currency}"))
             md = ["# Pricing options", "",
                   f"> Break-even = paying customers a month needed just to cover monthly costs "
                   f"C = {C.fmt_money(monthly, b.currency)}, worked out as ceil(C / P). It is a calculation on "

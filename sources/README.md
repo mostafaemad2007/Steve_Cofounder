@@ -1,13 +1,11 @@
 # Evidence sources
 
-Agents never invent a link. They are shown excerpts from the files in this folder, labelled `[S1]`,
-`[S2]` and so on, and may only cite those labels; the code maps a label back to the URL recorded
-here. A claim with no usable label is written down as an `ASSUMPTION` instead.
+**You do not need to put anything here.** Steve searches the web himself at each research step and can only
+cite pages his code actually downloaded. Pages saved in this folder are optional extra evidence: they are
+ranked alongside the web results, and they are the only evidence when `WEB_SEARCH=false` (for a run with no
+internet).
 
-**Gate 1 needs at least 5 claims backed by a real source URL**, so a run against an empty folder
-stops at Gate 1 whatever the idea is. Save the pages before the demo.
-
-## Format
+## Format (optional pages)
 
 One page per file, `.md` or `.txt`, with a short header, a blank line, then the page text:
 

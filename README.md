@@ -22,6 +22,7 @@ Run the tests: `docker compose run --rm app pytest`.
 | Step | Status |
 |---|---|
 | Decision log (`decision_log.json`) and evidence ledger | Working |
+| Live web search for evidence: Steve plans queries, reads the pages, cites only pages he read | Working |
 | Guard: refuses banned requests and unsourced or income-promising output | Working |
 | Gates 1-6 with thresholds pre-registered in `gates.yaml` | Working |
 | Founder approval enforced in code (web UI + CLI) | Working |
@@ -44,7 +45,8 @@ An orchestrator runs six phase agents in order. Every founder message and every 
 
 - Default model: `qwen3:4b` (open-weight, Apache-2.0) served by [Ollama](https://ollama.com) and pulled automatically by `docker compose up`.
 - Change it in `.env`: `MODEL=qwen3:8b` or `MODEL=gpt-oss:20b` on stronger hardware.
-- No paid API, no paid model, no API key. Evidence comes from pages saved in `sources/`, so a run needs no internet once the model is pulled.
+- No paid API, no paid model, no API key.
+- Evidence comes from live web search, also free and keyless: DuckDuckGo's plain HTML results page, with Wikipedia's search API as a fallback, or your own [SearXNG](https://github.com/searxng/searxng) instance via `SEARXNG_URL`. Pages saved in `sources/` are used as well, and `WEB_SEARCH=false` runs on saved pages only, with no internet.
 
 ## Cost per run
 

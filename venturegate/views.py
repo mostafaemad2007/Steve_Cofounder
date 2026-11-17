@@ -447,7 +447,7 @@ def evidence_html(records: list[dict], min_sourced: int, sources_loaded: int) ->
             f'aria-label="{sourced} of {min_sourced} sourced claims">{blocks}</div>'
             f'<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">'
             f'<div class="vg-stat"><b>{sourced}</b>sourced</div><div class="vg-stat"><b>{assumptions}</b>assumptions</div></div>'
-            f'<p style="font-size:12px;color:#5A5248">{sources_loaded} page(s) saved in sources/</p></section>'
+            f'<p style="font-size:12px;color:#5A5248">{sources_loaded} page(s) read so far</p></section>'
             f'<section class="vg vg-card vg-side" style="margin-top:12px"><div class="vg-label">Latest claims</div>{claims_html}</section>')
 
 
@@ -458,7 +458,8 @@ def records_html(paths: list[str]) -> str:
 
 
 # == the start screen side panel ================================================
-def start_side_html(*, model: str, ready: bool, recorded: int, sources_loaded: int, thresholds: dict) -> str:
+def start_side_html(*, model: str, ready: bool, recorded: int, sources_loaded: int, thresholds: dict,
+                    web_search: bool = False) -> str:
     def row(ok, title, text):
         icon = CHECK if ok else ('<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7A5208" stroke-width="2.2" '
                                  'stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Needs attention">'
@@ -468,8 +469,13 @@ def start_side_html(*, model: str, ready: bool, recorded: int, sources_loaded: i
     model_row = row(ready, "Local model ready" if ready else "Local model not reachable yet",
                     f"{e(model)} runs on this laptop. Cost: $0.00." if ready else
                     f"It may still be downloading. {recorded} recorded step(s) are available to replay.")
-    source_row = row(sources_loaded >= g1["min_sourced_claims"], f"{sources_loaded} evidence page(s) saved",
-                     f"Gate 1 needs {g1['min_sourced_claims']} claims backed by them. Add pages to <code>sources/</code>.")
+    if web_search:
+        source_row = row(True, "Steve searches the web",
+                         f"Live search at each research step, no API key. Gate 1 needs {g1['min_sourced_claims']} "
+                         f"claims backed by pages he actually read. {sources_loaded} saved page(s) are used too.")
+    else:
+        source_row = row(sources_loaded >= g1["min_sourced_claims"], f"{sources_loaded} evidence page(s) saved",
+                         f"Gate 1 needs {g1['min_sourced_claims']} claims backed by them. Add pages to <code>sources/</code>.")
     return (f'<section class="vg vg-card vg-side"><div class="vg-label">Before you start</div>{model_row}{source_row}</section>'
             '<section class="vg vg-card vg-side" style="margin-top:12px"><div class="vg-label">Steve will not</div>'
             '<ul style="margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:column;gap:6px">'

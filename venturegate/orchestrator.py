@@ -35,6 +35,7 @@ from .logger import DecisionLogger, now_iso
 from .mock_flow import run_mock_flow
 from .outputs import OutputWriter
 from .sources import SourceLibrary
+from .websearch import default_library
 
 Events = Generator[object, object, object]
 
@@ -93,9 +94,9 @@ class Pipeline:
         self.ctx = RunContext(
             brief=brief, llm=self.llm, guard=Guard(self.logger), logger=self.logger, writer=writer,
             ledger=(ledger or EvidenceLedger(self.out_dir / "evidence_ledger.json")).for_run(brief.run),
-            sources=sources if sources is not None else SourceLibrary())
+            sources=sources if sources is not None else default_library(self.llm.mode, self.logger))
         self.pivots = 0
-        self._notices_seen = 0
+        self._notices_seen: set[str] = set()
         self.phase = 0
 
     # == entry point ==========================================================
@@ -107,6 +108,7 @@ class Pipeline:
         try:
             self.gates = Gates(self.gates_path, self.logger) if self.gates_path else Gates(logger=self.logger)
             self.logger.log("orchestrator", "start_run", run_mode=self.llm.mode, llm_model=self.llm.model,
+                            web_search=getattr(self.ctx.sources, "live", False),
                             sources_loaded=len(self.ctx.sources), simulated_scenario=b.mock_scenario)
             done = yield from self._run()
         except FounderStopped as exc:
@@ -125,9 +127,12 @@ class Pipeline:
         b = self.brief
         mode = f"{REPLAY_TAG}, replaying a recorded real run" if self.llm.mode == "replay" else \
             f"live, local model {self.llm.model}"
-        yield Say(f"Starting run '{b.run}' ({mode}). {len(self.ctx.sources)} evidence source(s) loaded. "
+        live_web = getattr(self.ctx.sources, "live", False)
+        evidence = ("Steve searches the web for evidence at each research step" if live_web
+                    else f"{len(self.ctx.sources)} saved evidence page(s) loaded")
+        yield Say(f"Starting run '{b.run}' ({mode}). {evidence}. "
                   f"Demand numbers in this run come from the [SIMULATED] '{b.mock_scenario}' fixture.")
-        if len(self.ctx.sources) < self.gates.thresholds["G1_discover"]["min_sourced_claims"]:
+        if not live_web and len(self.ctx.sources) < self.gates.thresholds["G1_discover"]["min_sourced_claims"]:
             yield Say(f"Only {len(self.ctx.sources)} page(s) are saved in sources/. Gate 1 needs "
                       f"{self.gates.thresholds['G1_discover']['min_sourced_claims']} claims backed by real "
                       "sources, so this run may stop at Gate 1.", kind="notice")
@@ -161,9 +166,10 @@ class Pipeline:
         return f"{self.brief.run}:{key}"
 
     def _notices(self) -> Events:
-        for notice in self.llm.notices[self._notices_seen:]:
-            yield Say(notice, kind="notice")
-        self._notices_seen = len(self.llm.notices)
+        for notice in self.llm.notices + list(getattr(self.ctx.sources, "notices", [])):
+            if notice not in self._notices_seen:
+                self._notices_seen.add(notice)
+                yield Say(notice, kind="notice")
 
     def _start_phase(self, number: int, note: str = "") -> Say:
         self.phase = number

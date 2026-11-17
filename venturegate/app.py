@@ -101,8 +101,9 @@ class ConsoleApp:
 
     def start_side(self) -> str:
         st = self.model_status()
+        web = config.get("WEB_SEARCH", "true").lower() not in ("0", "false", "no", "off")
         return views.start_side_html(model=st["model"], ready=st["ready"], recorded=st["recorded"],
-                                     sources_loaded=len(SourceLibrary()), thresholds=self.thresholds)
+                                     sources_loaded=len(SourceLibrary()), thresholds=self.thresholds, web_search=web)
 
     def initial_header(self) -> str:
         st = self.model_status()

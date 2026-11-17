@@ -129,7 +129,7 @@ class DiscoverAgent(Agent):
             unique([o["name"] for o in d["options"]], "option name")
 
         def build(fb):
-            d, srcmap = self.ask("find_opportunities", task, OPPORTUNITIES, query=query, feedback=fb,
+            d, srcmap = self.ask("find_opportunities", task, OPPORTUNITIES, query=self.research("competitors", query), feedback=fb,
                                  check=check)
             ranked = sorted(d["options"], key=lambda o: -(o["demand"] + o["competition_room"] + o["founder_fit"]))
             md = ["# Opportunities and an honest verdict", "",
@@ -178,7 +178,7 @@ class DiscoverAgent(Agent):
             unique([f["factor"] for f in d["factors"]], "market factor")
 
         def build(fb):
-            d, srcmap = self.ask("market_fit", task, MARKET, query=f"{market} {self.ctx.brief.idea}",
+            d, srcmap = self.ask("market_fit", task, MARKET, query=self.research("market", f"{market} {self.ctx.brief.idea}"),
                                  feedback=fb, check=check)
             md = [f"# Target market fit: {market}", "", f"**Overall fit: {d['fit'].upper()}**", "",
                   "| Factor | Rating | Assessment |", "|---|---|---|"]
@@ -210,7 +210,7 @@ class DiscoverAgent(Agent):
 
         def build(fb):
             d, srcmap = self.ask("improvements_ip_check", task, IMPROVE, check=check, feedback=fb,
-                                 query=f"{self.ctx.brief.idea} trademark licence terms of service copyright")
+                                 query=self.research("legal", f"{self.ctx.brief.idea} trademark licence terms of service copyright"))
             md = ["# Improvements, intellectual property check and skill gaps", "", "## Suggested improvements", ""]
             for i, imp in enumerate(d["improvements"], 1):
                 md += [f"### Option {i}: {imp['title']}", "", f"- Change: {imp['change']}",
@@ -253,7 +253,7 @@ class DiscoverAgent(Agent):
 
         def build(fb):
             d, srcmap = self.ask("list_costs", task, COSTS, feedback=fb,
-                                 query=f"{b.idea} hosting domain tools price per month cost")
+                                 query=self.research("costs", f"{b.idea} hosting domain tools price per month cost"))
             one_off, monthly = C.total(d["one_off"]), C.total(d["monthly"])
             runway = C.runway_months(b.budget, one_off, monthly)
             md = ["# Costs and runway (costs only, no income figures)", "",

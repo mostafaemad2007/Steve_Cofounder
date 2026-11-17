@@ -31,7 +31,7 @@ flowchart TD
 
 | Phase | Agent | Tools | Gate | Outputs |
 |---|---|---|---|---|
-| 1 Discover | `discover` | local model, `sources/` | G1 evidence | intake, opportunities + verdict, market fit, improvements + IP checklist, costs + runway, Mom Test script |
+| 1 Discover | `discover` | local model, live web search | G1 evidence | intake, opportunities + verdict, market fit, improvements + IP checklist, costs + runway, Mom Test script |
 | 2 Validate | `validate` | local model, mocks | G2 demand | lean canvas, landing page draft, `[SIMULATED]` demand, detailed plan |
 | 3 Build | `build` | local model, MVP tests | G3 tests | working MVP, user docs, test report |
 | 4 Commercial setup | `commercial` | local model, cost arithmetic | G4 commercial | pricing options + break-even, DRAFT policies |
@@ -40,7 +40,9 @@ flowchart TD
 
 ### Phase 1 Discover
 
-**Core step: find opportunities.** Agent `discover`; tools: local model, saved sources in `sources/`, cost arithmetic in `costs.py`.
+**Core step: find opportunities.** Agent `discover`; tools: local model, live web search (`websearch.py`), cost arithmetic in `costs.py`.
+
+**Research.** At the start of the run Steve's model plans one or two short search queries for each research topic (competitors, market, legal, costs, pricing). Each research step then searches the web, downloads the top results (HTML or plain text only, robots.txt respected, size and time capped, login-walled social sites skipped), extracts their readable text and ranks excerpts from them. Search providers, all free and without API keys: a SearXNG instance if configured, otherwise DuckDuckGo's plain HTML results page, with Wikipedia's search API when a search returns nothing. Pages saved in `sources/` are ranked alongside. Every search is logged with the URLs actually read, and the excerpts shown to the model are kept in `replay/search/` so a run can be replayed and every citation checked. With no internet the claims become ASSUMPTIONs and Gate 1 stops the run, honestly.
 
 1. **Intake**: restates the idea for the founder to confirm and flags anything that is not a digital product or falls in an excluded category.
 2. **Opportunities and verdict**: compares the founder's idea with at least two alternative angles, scores demand, room against competitors and founder fit (the total is added up in code), names competitors from the sources, and gives a verdict of strong, promising, weak or not viable, with reasons.
@@ -91,7 +93,7 @@ Agent `operate`; tools: local model, `[SIMULATED]` fixtures, the cost data.
 
 ### How agents are kept honest
 
-- **Sources cannot be invented.** The model sees excerpts labelled `[S1]`..`[Sn]` and may cite only those labels; code maps a label to its URL. A label that does not resolve makes the claim an ASSUMPTION, noted in the output.
+- **Sources cannot be invented.** The model sees excerpts from pages the code actually downloaded, labelled `[S1]`..`[Sn]`, and may cite only those labels; code maps a label to its URL. A label that does not resolve makes the claim an ASSUMPTION, noted in the output.
 - **Sources are fenced as evidence.** Instructions hidden inside a saved page are treated as text, not commands.
 - **Every output passes the guard.** A rejected draft is redone with the guard's findings, at most three attempts, then the step fails loudly. Claims from a rejected draft never reach the evidence ledger.
 - **Replies are checked.** Each reply must match a JSON schema plus code checks (no repeated options, all five IP areas, each ticket answered once). A malformed reply is retried with the error attached.
@@ -127,7 +129,8 @@ Amount-level reconciliation (gross, fees, net payout) is **STUBBED**: this syste
 ```
 founder brief
    -> guard.pre_check            (refuse banned requests; log the refusal)
-   -> agent + llm                (local model; sources are excerpts labelled [S1]..[Sn])
+   -> web search                 (queries planned by the model; pages fetched and ranked by code)
+   -> agent + llm                (local model; evidence is excerpts labelled [S1]..[Sn])
    -> guard.post_check           (no income figures, no fake social proof; every claim sourced or ASSUMPTION)
    -> outputs/phase<N>_step<M>_<run>-<name>.md
    -> founder confirmation       (approve, or reject with changes)
