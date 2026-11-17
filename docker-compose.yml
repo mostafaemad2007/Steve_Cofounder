@@ -27,6 +27,11 @@ services:
     environment:
       - OLLAMA_URL=http://ollama:11434
       - MODEL=${MODEL:-qwen3:4b}
+      # optional speed settings, read from a .env file next to this one (see .env.example)
+      - SEARCH_RESULTS_PER_QUERY=${SEARCH_RESULTS_PER_QUERY:-4}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-900}
+      - NUM_CTX=${NUM_CTX:-8192}
+      - WEB_SEARCH=${WEB_SEARCH:-true}
     ports:
       - "7860:7860"
     volumes:
