@@ -230,6 +230,20 @@ class Agent:
         raise OutputRejected(f"{self.name}: the output still broke the rules after {attempts} attempts.")
 
 
+def dedupe(items: list, key: str, label: str, minimum: int = 1) -> None:
+    """Drop repeated entries in place (small models often repeat themselves), keeping the first of each.
+    Raise ValueError (a model retry) only when fewer than `minimum` different entries remain."""
+    seen, kept = set(), []
+    for item in items:
+        k = " ".join(str(item.get(key, "")).lower().split()).rstrip("?.! ")
+        if k and k not in seen:
+            seen.add(k)
+            kept.append(item)
+    if len(kept) < minimum:
+        raise ValueError(f"only {len(kept)} different {label}(s); write at least {minimum} different ones")
+    items[:] = kept
+
+
 def unique(values, label: str) -> None:
     """Raise ValueError (which triggers a model retry) when a list repeats an entry."""
     seen = [str(v).strip().lower() for v in values]

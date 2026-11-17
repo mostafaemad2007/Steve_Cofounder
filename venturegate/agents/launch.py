@@ -9,7 +9,7 @@ import html
 
 from .. import costs as C
 from ..schema import arr, obj, s
-from .base import Agent, StepResult, unique
+from .base import Agent, StepResult, unique, dedupe
 
 LINK = "<STORE_LINK>"
 STORE = obj({"title": s(3), "description": s(20), "bullets": arr(s(5), 3, 6),
@@ -59,10 +59,10 @@ class LaunchAgent(Agent):
                 f"ratings, user counts or income promises. Put the link placeholder {LINK} in every post.")
 
         def check(d):
-            unique([p["channel"] for p in d["posts"]], "channel")
-            missing = [p["channel"] for p in d["posts"] if LINK not in p["text"]]
-            if missing:
-                raise ValueError(f"every post needs the placeholder {LINK}; missing in: {missing}")
+            dedupe(d["posts"], "channel", "channel")
+            for p in d["posts"]:                   # the link placeholder is added, never a real link
+                if LINK not in p["text"]:
+                    p["text"] = p["text"].rstrip() + f" {LINK}"
 
         def build(fb):
             d, _ = self.ask("launch_posts", task, POSTS, feedback=fb, check=check)

@@ -159,13 +159,36 @@ def test_market_fit_needs_a_target_market(tmp_path):
         DiscoverAgent(ctx).market()
 
 
-def test_market_fit_rejects_a_repeated_factor(tmp_path):
+def test_market_fit_drops_a_repeated_factor(tmp_path):
     dup = variant("market_fit")
-    dup["factors"][1]["factor"] = "demand"
+    dup["factors"][1]["factor"] = dup["factors"][0]["factor"]
     ctx = make_ctx(tmp_path, {"market_fit": [dup]})
     result = DiscoverAgent(ctx).market()
     assert result.files[0].name == "phase1_step3_strong-market-fit.md"
-    assert ctx.fake.calls.count("market_fit") == 2
+    assert ctx.fake.calls.count("market_fit") == 1                 # kept, without the repeat
+
+
+def test_the_interview_script_survives_a_small_model_repeating_itself(tmp_path):
+    """The real qwen3:1.7b reply from the demo: three questions, each repeated."""
+    base = variant("mom_test_script")
+    qs = [{"question": "What was the last time the problem happened?", "why": "Past behaviour."},
+          {"question": "How do they handle the problem today?", "why": "Current workaround."},
+          {"question": "What do they already spend time or money on?", "why": "Real spending."}]
+    repeated = dict(base, questions=qs * 3)
+    ctx = make_ctx(tmp_path, {"mom_test_script": [repeated]})
+    result = DiscoverAgent(ctx).interview_script()
+    assert ctx.fake.calls.count("mom_test_script") == 1 and len(result.data["questions"]) == 3
+    script = text(result.files[0])
+    assert script.count("How do they handle the problem today?") == 1
+
+
+def test_hypothetical_questions_are_removed_and_too_few_real_ones_ask_again(tmp_path):
+    base = variant("mom_test_script")
+    bad = dict(base, questions=[{"question": "Would you pay 10 dollars for this pack?", "why": "Price."}] * 6)
+    ctx = make_ctx(tmp_path, {"mom_test_script": [bad]})
+    result = DiscoverAgent(ctx).interview_script()
+    assert ctx.fake.calls.count("mom_test_script") == 2              # all hypothetical: asked again
+    assert "Would you pay" not in text(result.files[0])
 
 
 def test_ip_checklist_must_cover_every_area_and_carries_the_disclaimer(tmp_path):
@@ -173,7 +196,8 @@ def test_ip_checklist_must_cover_every_area_and_carries_the_disclaimer(tmp_path)
     partial["ip_checklist"][4]["area"] = "trademark"           # patents etc. now missing / duplicated
     ctx = make_ctx(tmp_path, {"improvements_ip_check": [partial]})
     out = text(DiscoverAgent(ctx).improvements_ip().files[0])
-    assert ctx.fake.calls.count("improvements_ip_check") == 2
+    assert ctx.fake.calls.count("improvements_ip_check") == 1          # repeat dropped, gap marked unknown
+    assert "| exclusive rights regulation | unknown | Not checked in this run" in out and out.count("| trademark |") == 1
     assert "not legal advice" in out and "Still unknown" in out
     assert ctx.state["skills_blocking"] is False
 
@@ -338,8 +362,9 @@ def test_support_must_answer_every_ticket_exactly_once(tmp_path):
                                                   {"ticket_id": "T-9", "reply": "A reply to a ticket that does not exist."}])
     ctx = make_ctx(tmp_path, {"support_replies": [partial]})
     out = text(OperateAgent(ctx).support().files[0])
-    assert ctx.fake.calls.count("support_replies") == 2
+    assert ctx.fake.calls.count("support_replies") == 1                # invented ticket dropped, gaps marked
     assert all(t in out for t in ("T-1", "T-2", "T-3")) and "T-9" not in out
+    assert out.count("the founder answers this ticket personally") == 2
 
 
 def test_metrics_are_labelled_and_need_no_model(ctx):

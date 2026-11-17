@@ -10,7 +10,7 @@ import html
 
 from .. import mocks
 from ..schema import arr, obj, s
-from .base import Agent, StepResult, unique
+from .base import Agent, StepResult, unique, dedupe
 
 CANVAS = obj({
     "problem": arr(s(5), 1, 3), "customer_segments": arr(s(3), 1, 3), "unique_value_proposition": s(10),
@@ -130,7 +130,13 @@ class ValidateAgent(Agent):
                 "only as a manual step the founder takes outside this system. No income figures.")
 
         def check(d):
-            unique([a["area"] for a in d["areas"]], "plan area")
+            dedupe(d["areas"], "area", "plan area")
+            for area in PLAN_AREAS:                # an area the model skipped is marked, never invented
+                if area not in [a["area"] for a in d["areas"]]:
+                    d["areas"].append({"area": area, "steps": ["Not written in this run: plan this area with "
+                                                               "Steve in a follow-up run (ASSUMPTION: no plan yet)."],
+                                       "options": [], "tools": ["none yet"],
+                                       "founder_approves": "Every step in this area, before it starts."})
 
         def build(fb):
             d, _ = self.ask("detailed_plan", task, PLAN, feedback=fb, check=check)

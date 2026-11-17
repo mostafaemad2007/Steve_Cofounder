@@ -6,7 +6,7 @@ Steps
 """
 from .. import costs as C
 from ..schema import arr, obj, s
-from .base import Agent, StepResult, unique
+from .base import Agent, StepResult, unique, dedupe
 
 DRAFT_LABEL = "DRAFT - not legal advice"
 
@@ -32,7 +32,7 @@ class CommercialAgent(Agent):
                 "Name the option you recommend in `recommended`.")
 
         def check(d):
-            unique([o["name"] for o in d["options"]], "price option")
+            dedupe(d["options"], "name", "price option")
 
         def build(fb):
             d, _ = self.ask("pricing_options", task, PRICING, feedback=fb, check=check,

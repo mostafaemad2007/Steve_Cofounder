@@ -12,7 +12,7 @@ import re
 
 from .. import costs as C
 from ..schema import CLAIMS, arr, obj, s
-from .base import Agent, StepResult, planning_months, unique
+from .base import Agent, StepResult, planning_months, unique, dedupe
 
 IP_AREAS = ("trademark", "copyright_licensing", "platform_terms", "patents", "exclusive_rights_regulation")
 MARKET_FACTORS = ("demand", "competition", "culture", "regulation", "language", "purchasing_power")
@@ -126,7 +126,7 @@ class DiscoverAgent(Agent):
         query = f"{b.idea} competitors alternatives pricing {b.target_market or ''}"
 
         def check(d):
-            unique([o["name"] for o in d["options"]], "option name")
+            dedupe(d["options"], "name", "option", minimum=3)
 
         def build(fb):
             d, srcmap = self.ask("find_opportunities", task, OPPORTUNITIES, query=self.research("competitors", query), feedback=fb,
@@ -176,7 +176,7 @@ class DiscoverAgent(Agent):
                 "neutral or negative with a short assessment, then give the overall fit.")
 
         def check(d):
-            unique([f["factor"] for f in d["factors"]], "market factor")
+            dedupe(d["factors"], "factor", "market factor", minimum=3)
 
         def build(fb):
             d, srcmap = self.ask("market_fit", task, MARKET, query=self.research("market", f"{market} {self.ctx.brief.idea}"),
@@ -206,8 +206,12 @@ class DiscoverAgent(Agent):
             task += f" The founder already has: {', '.join(self.ctx.brief.skills)}; leave those out."
 
         def check(d):
+            dedupe(d["ip_checklist"], "area", "IP area")
+            for area in IP_AREAS:                  # an area the model skipped is reported as unchecked
+                if area not in [item["area"] for item in d["ip_checklist"]]:
+                    d["ip_checklist"].append({"area": area, "status": "unknown", "source_id": None,
+                                              "finding": "Not checked in this run. Check this yourself before launch."})
             areas = [item["area"] for item in d["ip_checklist"]]
-            unique(areas, "IP area")
             missing = sorted(set(IP_AREAS) - set(areas))
             if missing:
                 raise ValueError(f"the IP checklist is missing: {missing}")
@@ -309,10 +313,9 @@ class DiscoverAgent(Agent):
                 "or 'would you pay'. Do not write any answers; the founder runs real interviews.")
 
         def check(d):
-            bad = [q["question"] for q in d["questions"] if HYPOTHETICAL.search(q["question"])]
-            if bad:
-                raise ValueError(f"these questions are hypothetical; rewrite them about past behaviour: {bad}")
-            unique([q["question"] for q in d["questions"]], "question")
+            # The Mom Test: hypothetical questions are removed, never kept; repeats are removed too.
+            d["questions"][:] = [q for q in d["questions"] if not HYPOTHETICAL.search(q["question"])]
+            dedupe(d["questions"], "question", "past-behaviour question", minimum=3)
 
         def build(fb):
             d, _ = self.ask("mom_test_script", task, SCRIPT, feedback=fb, check=check)

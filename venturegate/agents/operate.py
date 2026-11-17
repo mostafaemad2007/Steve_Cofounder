@@ -28,10 +28,15 @@ class OperateAgent(Agent):
                 "reply per ticket id. Never promise features that do not exist.\n" + listing)
 
         def check(d):
-            answered = [r["ticket_id"] for r in d["replies"]]
-            unknown, missing = sorted(set(answered) - ids), sorted(ids - set(answered))
-            if unknown or missing or len(answered) != len(set(answered)):
-                raise ValueError(f"reply to each ticket exactly once; unknown: {unknown}, missing: {missing}")
+            # one reply per real ticket: repeats and invented ticket ids are dropped
+            d["replies"][:] = [r for r in d["replies"] if r["ticket_id"] in ids]
+            seen = set()
+            d["replies"][:] = [r for r in d["replies"] if not (r["ticket_id"] in seen or seen.add(r["ticket_id"]))]
+            if not d["replies"]:
+                raise ValueError(f"reply to these ticket ids: {sorted(ids)}")
+            for tid in sorted(ids - seen):         # a ticket the model skipped is left to the founder
+                d["replies"].append({"ticket_id": tid, "reply": "No draft in this run: the founder answers this "
+                                                                "ticket personally."})
 
         def build(fb):
             d, _ = self.ask("support_replies", task, REPLIES, feedback=fb, check=check)
