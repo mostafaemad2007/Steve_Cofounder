@@ -1,4 +1,6 @@
-"""The founder brief: a starting idea plus skills, budget, time, target market, values and language.
+"""The founder brief: a starting idea plus budget, time, target market, values and language.
+
+The founder is not asked for skills: Steve works out which skills the idea needs (Phase 1, step 4).
 
 Validated on load so a bad brief fails with a clear message before any model call, rather than
 halfway through a phase.
@@ -45,7 +47,6 @@ def _as_number(value, name: str) -> float:
 class FounderBrief:
     run: str                       # short label used in output file names, e.g. "weak" or "strong"
     idea: str
-    skills: list[str]
     budget: float                  # total money the founder can put in, in `currency`
     hours_per_week: float
     currency: str = "USD"
@@ -55,12 +56,13 @@ class FounderBrief:
     # Which [SIMULATED] demand fixture in venturegate/mocks/ this run uses. It is a prepared
     # scenario, stated openly in every output that uses it, never a prediction.
     mock_scenario: str = "strong"
+    skills: list[str] = field(default_factory=list)   # optional; Steve does not ask for it
 
     @classmethod
     def from_dict(cls, data: dict) -> "FounderBrief":
         if not isinstance(data, dict):
             raise BriefError("the brief must be a set of fields (a YAML mapping)")
-        missing = [k for k in ("run", "idea", "skills", "budget", "hours_per_week")
+        missing = [k for k in ("run", "idea", "budget", "hours_per_week")
                    if data.get(k) in (None, "", [])]
         if missing:
             raise BriefError(f"the brief is missing: {', '.join(missing)}")
@@ -75,9 +77,7 @@ class FounderBrief:
         if len(idea) > 2000:
             raise BriefError("keep the idea under 2000 characters")
 
-        skills = _as_list(data["skills"])
-        if not skills:
-            raise BriefError("list at least one skill")
+        skills = _as_list(data.get("skills"))
 
         hours = _as_number(data["hours_per_week"], "hours_per_week")
         if hours > 168:
@@ -117,7 +117,7 @@ class FounderBrief:
         """The brief as the agents (and the guard) see it."""
         return "\n".join([
             f"Idea: {self.idea}",
-            f"Founder skills: {', '.join(self.skills)}",
+            *([f"Founder skills: {', '.join(self.skills)}"] if self.skills else []),
             f"Budget: {self.budget:g} {self.currency} in total",
             f"Time: {self.hours_per_week:g} hours per week",
             f"Target market: {self.target_market or 'not given yet'}",

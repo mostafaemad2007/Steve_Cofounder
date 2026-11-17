@@ -16,7 +16,7 @@ from typing import Callable
 
 import yaml
 
-from . import config, views
+from . import chat, config, views
 from .brief import BriefError, FounderBrief
 from .events import Done, Reply, Request, Say
 from .llm import LLM
@@ -40,6 +40,7 @@ class Session:
     brief: FounderBrief
     pipeline: Pipeline
     events: list = field(default_factory=list)
+    transcript: list = field(default_factory=list)   # Say, Request and ("founder", text), in order: the chat
     pending: Request | None = None
     done: Done | None = None
     started: bool = False
@@ -63,9 +64,11 @@ class Session:
             while True:
                 if isinstance(event, Request):
                     self.pending = event
+                    self.transcript.append(event)
                     yield
                     return
                 self.events.append(event)
+                self.transcript.append(event)
                 yield
                 event = self.generator.send(None)
         except StopIteration as stop:
@@ -108,6 +111,11 @@ class ConsoleApp:
         return views.start_side_html(model=st["model"], ready=st["ready"], recorded=st["recorded"],
                                      sources_loaded=len(SourceLibrary()), thresholds=self.thresholds, web_search=web)
 
+    def welcome(self) -> str:
+        llm = LLM()
+        ready, why = llm.model_listed() if llm.mode == "live" else (True, "")
+        return views.welcome_html(thresholds=self.thresholds, ready=ready, why=why, recorded=llm.recorded_steps())
+
     def initial_header(self) -> str:
         st = self.model_status()
         return views.header_html(model=st["model"], mode="live", ready=st["ready"])
@@ -120,15 +128,15 @@ class ConsoleApp:
     def load_example(name: str) -> dict:
         data = yaml.safe_load((EXAMPLES / f"{name}_idea.yaml").read_text(encoding="utf-8"))
         return {"run": data["run"], "idea": " ".join(str(data["idea"]).split()),
-                "skills": ", ".join(data["skills"]), "market": data.get("target_market") or "",
+                "market": data.get("target_market") or "",
                 "budget": data["budget"], "currency": data.get("currency", "USD"),
                 "hours": data["hours_per_week"], "values": ", ".join(data.get("values") or []),
                 "language": "Arabic" if data.get("language") == "ar" else "English",
                 "scenario": data.get("mock_scenario", "strong")}
 
-    def brief_from_form(self, run, idea, skills, market, budget, currency, hours, values, language, scenario):
+    def brief_from_form(self, run, idea, market, budget, currency, hours, values, language, scenario="strong"):
         return FounderBrief.from_dict({
-            "run": run or "my-idea", "idea": idea, "skills": skills, "target_market": market,
+            "run": run or "my-idea", "idea": idea, "target_market": market,
             "budget": budget, "currency": currency, "hours_per_week": hours, "values": values,
             "language": "ar" if str(language).startswith("Arab") else "en",
             "mock_scenario": "weak" if str(scenario).lower().startswith("weak") else "strong"})
@@ -157,10 +165,15 @@ class ConsoleApp:
             yield self.view(session)
             return
         text = " ".join((text or "").split())
-        reply, problem = self.reply_for(request, action, text)
+        if action in ("yes", "no", "send"):                     # the chat: buttons or a typed message
+            reply, problem, said = chat.reply_for(request, action, text)
+        else:                                                   # the older decision panel (kept for the CLI tests)
+            reply, problem = self.reply_for(request, action, text)
+            said = text or {"primary": "Approve", "secondary": "Request changes", "quiet": "Stop"}.get(action, action)
         if problem:
             yield {**self.view(session), "alert": problem}
             return
+        session.transcript.append(("founder", said))
         for _ in session.advance(reply):
             yield self.view(session)
 
@@ -198,15 +211,19 @@ class ConsoleApp:
                                             len(p.ctx.sources)),
             "files": views.records_html(files),
             "finished": session.done is not None,
+            "chat": chat.messages(session.transcript, session.pending, session.done),
+            "quick": chat.quick_replies(session.pending, finished=session.done is not None),
+            "progress": views.progress_html(p.ctx.ledger.records(session.brief.run), min_sourced),
             "alert": "",
         }
 
 
 # == the page ==================================================================
 START_INTRO = ('<div class="vg" style="display:flex;align-items:center;gap:14px">{emblem}<div>'
-               '<h1 style="font-size:25px">Hi, I\'m Steve. What do you want to build?</h1>'
-               '<p style="color:#5A5248">I check your idea against evidence, ask you before every step, and tell you '
-               'plainly when the evidence says stop.</p></div></div>')
+               '<h1 style="font-size:25px">What do you want to build?</h1>'
+               '<p style="color:#5A5248">Describe your idea in a sentence or two. Steve takes it from there and '
+               'asks you before every step.</p></div></div>')
+STEVE_AVATAR = Path(__file__).resolve().parent / "static" / "steve.svg"
 
 
 def build_ui(app: ConsoleApp | None = None):
@@ -235,84 +252,100 @@ def _build_ui(app: ConsoleApp | None = None):
         header = HTML(app.initial_header())
         alert = HTML("", elem_classes="vg-message")
 
-        with gr.Row(elem_id="vg-main", equal_height=False):
+        # 1. welcome: what Steve does, then one button to begin
+        with gr.Column(elem_id="vg-welcome", visible=True) as welcome_view:
+            welcome = HTML(app.welcome())
+            with gr.Row():
+                begin_btn = gr.Button("Get started: tell Steve your idea", elem_classes="vg-btn-primary")
+                replay_btn = gr.Button("Watch a recorded example (instant)", elem_classes="vg-btn-secondary",
+                                       visible=app.model_status()["recorded"] > 0)
+
+        # 2. the idea, in a few fields
+        with gr.Column(elem_id="vg-start", visible=False) as form_view:
+            HTML(START_INTRO.format(emblem=views.emblem(44)))
+            example_btn = gr.Button("Fill in an example idea for me", elem_classes="vg-btn-secondary", size="md")
+            idea = gr.Textbox(label="Your idea (a digital product)", lines=3,
+                              placeholder="What would you like to build, and who is it for?")
+            with gr.Row():
+                budget = gr.Number(label="Money you can spend in total", value=300, minimum=0)
+                currency = gr.Dropdown(["USD", "EGP", "EUR"], value="USD", label="Currency")
+                hours = gr.Number(label="Hours you can give each week", value=10, minimum=0, maximum=168)
+                language = gr.Dropdown(["English", "Arabic"], value="English", label="Language of the reports")
+            with gr.Accordion("More about you and your idea (optional)", open=False):
+                with gr.Row():
+                    market = gr.Textbox(label="Who is it for?", placeholder="Steve will ask if you leave this empty")
+                    values = gr.Textbox(label="What matters to you?", placeholder="honesty, accessibility")
+            with gr.Row():
+                back_btn = gr.Button("Back to the introduction", elem_classes="vg-btn-quiet", scale=0, min_width=200)
+                start_btn = gr.Button("Start working with Steve", elem_classes="vg-btn-primary")
+
+        # 3. the chat with Steve
+        with gr.Row(elem_id="vg-main", equal_height=False, visible=False) as run_view:
             with gr.Column(elem_id="vg-left", scale=0, min_width=248):
                 rail = HTML(views.rail_html(views.rail_state([], None, None)))
-                brief = HTML(views.how_steve_works_html())
+                progress = HTML("", visible=False)       # drawn inside the rail block (see to_updates)
             with gr.Column(elem_id="vg-center", scale=1, min_width=420):
-                with gr.Column(elem_id="vg-start", visible=True) as start_view:
-                    HTML(START_INTRO.format(emblem=views.emblem(44)))
-                    with gr.Row():
-                        weak_btn = gr.Button("Weak idea: ends in STOP", elem_classes="vg-btn-secondary", size="md")
-                        strong_btn = gr.Button("Strong idea: all six phases", elem_classes="vg-btn-secondary", size="md")
-                    idea = gr.Textbox(label="Your idea (a digital product)", lines=3,
-                                      placeholder="What would you build, and for whom?")
-                    with gr.Row():
-                        skills = gr.Textbox(label="Your skills", placeholder="writing, web development")
-                        market = gr.Textbox(label="Who it is for (optional, Steve will ask)")
-                        values = gr.Textbox(label="Your values (optional)", placeholder="honesty, accessibility")
-                    with gr.Row():
-                        budget = gr.Number(label="Total budget", value=300, minimum=0)
-                        currency = gr.Dropdown(["USD", "EGP", "EUR"], value="USD", label="Currency")
-                        hours = gr.Number(label="Hours per week", value=10, minimum=0, maximum=168)
-                        language = gr.Dropdown(["English", "Arabic"], value="English", label="Language")
-                    scenario = gr.Radio([WEAK_SCENARIO, STRONG_SCENARIO], value=STRONG_SCENARIO,
-                                        label="Waitlist numbers to test with [SIMULATED]: sample numbers, since there is "
-                                              "no real waitlist yet")
-                    mode = gr.Radio(list(MODES), value=app.default_mode(), label="How Steve runs")
-                    start_btn = gr.Button("Start with Steve", elem_classes="vg-btn-primary")
-                with gr.Column(elem_id="vg-run", visible=False) as run_view:
-                    timeline = HTML("", elem_id="vg-timeline")
-                    with gr.Column(elem_id="vg-dock", visible=False) as dock:
-                        decision = HTML("")
-                        with gr.Row(equal_height=True):
-                            feedback = gr.Textbox(label="What should change?", lines=1, scale=3, min_width=220)
-                            primary = gr.Button("Approve and continue", elem_classes="vg-btn-primary", scale=0, min_width=180)
-                            secondary = gr.Button("Request changes", elem_classes="vg-btn-secondary", scale=0, min_width=150)
-                            quiet = gr.Button("Stop the run", elem_classes="vg-btn-quiet", scale=0, min_width=110)
-                    new_btn = gr.Button("Start a new brief", elem_id="vg-new", elem_classes="vg-btn-primary", visible=False)
-            with gr.Column(elem_id="vg-right", scale=0, min_width=300):
-                side = HTML(app.start_side())
-                files = HTML("")
-                HTML(views.legend_html())
+                chatbot = gr.Chatbot(type="messages", elem_id="vg-chat", show_label=False, height="calc(100vh - 250px)",
+                                     latex_delimiters=[], avatar_images=(None, str(STEVE_AVATAR)),
+                                     placeholder="Steve is getting ready…")
+                with gr.Row(elem_id="vg-quick"):
+                    yes_btn = gr.Button("Yes", elem_classes="vg-btn-primary", visible=False)
+                    no_btn = gr.Button("Stop", elem_classes="vg-btn-secondary", visible=False)
+                with gr.Row(equal_height=True):
+                    msg = gr.Textbox(show_label=False, lines=1, max_lines=4, scale=5, container=False,
+                                     placeholder="Steve is working. You can reply when he asks you something.",
+                                     interactive=False)
+                    send_btn = gr.Button("Send", elem_classes="vg-btn-primary", scale=0, min_width=110,
+                                         interactive=False)
+                    new_btn = gr.Button("Start over with a new idea", elem_id="vg-new", elem_classes="vg-btn-secondary",
+                                        scale=0, min_width=230)
 
-        form_fields = [idea, skills, market, budget, currency, hours, values, language, scenario]
-        outputs = [header, rail, brief, timeline, dock, decision, feedback, primary, secondary, quiet,
-                   side, files, start_view, run_view, new_btn, alert]
+        form_fields = [idea, market, budget, currency, hours, values, language]
+        outputs = [header, rail, progress, chatbot, yes_btn, no_btn, msg, send_btn,
+                   welcome_view, form_view, run_view, alert]
 
         def to_updates(view: dict):
             if view.get("screen") == "start":
-                return [gr.update()] * (len(outputs) - 1) + [views.alert_html(view.get("alert"))]
-            c = view["controls"]
-            visible = c.get("visible", False)
-            return [view["header"], view["rail"], view["brief"], view["timeline"],
-                    gr.update(visible=visible), view["decision"],
-                    gr.update(visible=bool(visible and c.get("text_visible")), label=c.get("text_label") or "Text",
-                              value=""),
-                    gr.update(visible=visible and bool(c.get("primary")), value=c.get("primary") or "OK"),
-                    gr.update(visible=visible and bool(c.get("secondary")), value=c.get("secondary") or "Change"),
-                    gr.update(visible=visible and bool(c.get("quiet")), value=c.get("quiet") or "Stop"),
-                    view["evidence"], view["files"], gr.update(visible=False), gr.update(visible=True),
-                    gr.update(visible=view["finished"]), views.alert_html(view.get("alert"))]
+                return [gr.update()] * 8 + [gr.update(visible=False), gr.update(visible=True),
+                                            gr.update(visible=False), views.alert_html(view.get("alert"))]
+            q = view["quick"]
+            keep_text = bool(view.get("alert"))             # a problem with the message: let the founder fix it
+            return [view["header"], view["rail"] + view["progress"], "", view["chat"],
+                    gr.update(visible=bool(q["yes"]), value=q["yes"] or "Yes"),
+                    gr.update(visible=bool(q["no"]), value=q["no"] or "Stop"),
+                    gr.update(placeholder=q["placeholder"], interactive=q["can_type"],
+                              **({} if keep_text else {"value": ""})),
+                    gr.update(interactive=q["can_type"]),
+                    gr.update(visible=False), gr.update(visible=False), gr.update(visible=True),
+                    views.alert_html(view.get("alert"))]
 
-        def on_example(name):
-            ex = app.load_example(name)
-            return (ex["run"], ex["idea"], ex["skills"], ex["market"], ex["budget"], ex["currency"], ex["hours"],
-                    ex["values"], ex["language"],
-                    WEAK_SCENARIO if ex["scenario"] == "weak" else STRONG_SCENARIO)
+        begin_btn.click(lambda: (gr.update(visible=False), gr.update(visible=True), ""), None,
+                        [welcome_view, form_view, alert])
+        back_btn.click(lambda: (gr.update(visible=True), gr.update(visible=False), ""), None,
+                       [welcome_view, form_view, alert])
 
-        example_outputs = [run_label] + form_fields
-        weak_btn.click(lambda: on_example("weak"), None, example_outputs)
-        strong_btn.click(lambda: on_example("strong"), None, example_outputs)
+        def on_example():
+            ex = app.load_example("strong")
+            return (ex["run"], ex["idea"], ex["market"], ex["budget"], ex["currency"], ex["hours"],
+                    ex["values"], ex["language"])
 
-        def on_start(label, *values):
-            *form_values, mode_label = values
-            form = dict(zip(["idea", "skills", "market", "budget", "currency", "hours", "values", "language",
-                             "scenario"], form_values), run=label)
-            for new_sid, view in app.start(form, mode_label):
+        example_btn.click(on_example, None, [run_label] + form_fields)
+
+        def on_start(label, *form_values):
+            form = dict(zip(["idea", "market", "budget", "currency", "hours", "values", "language"], form_values),
+                        run=label)
+            for new_sid, view in app.start(form, LIVE):
                 yield [new_sid] + to_updates(view)
 
-        start_btn.click(on_start, [run_label] + form_fields + [mode], [sid] + outputs)
+        start_btn.click(on_start, [run_label] + form_fields, [sid] + outputs)
+
+        def on_replay():
+            ex = app.load_example("strong")
+            form = {k: ex[k] for k in ("idea", "market", "budget", "currency", "hours", "values", "language")}
+            for new_sid, view in app.start({**form, "run": ex["run"]}, REPLAY):
+                yield [new_sid] + to_updates(view)
+
+        replay_btn.click(on_replay, None, [sid] + outputs)
 
         def on_action(action):
             def handler(current_sid, text):
@@ -320,18 +353,19 @@ def _build_ui(app: ConsoleApp | None = None):
                     yield to_updates(view)
             return handler
 
-        primary.click(on_action("primary"), [sid, feedback], outputs)
-        secondary.click(on_action("secondary"), [sid, feedback], outputs)
-        quiet.click(on_action("quiet"), [sid, feedback], outputs)
-        feedback.submit(on_action("primary"), [sid, feedback], outputs)
+        yes_btn.click(on_action("yes"), [sid, msg], outputs)
+        no_btn.click(on_action("no"), [sid, msg], outputs)
+        send_btn.click(on_action("send"), [sid, msg], outputs)
+        msg.submit(on_action("send"), [sid, msg], outputs)
 
         def on_new():
-            return ["", "my-idea", app.initial_header(), views.rail_html(views.rail_state([], None, None)),
-                    views.how_steve_works_html(), "", gr.update(visible=False), "", app.start_side(), "",
-                    gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), ""]
+            return ["", "my-idea", app.initial_header(), views.rail_html(views.rail_state([], None, None)), "", [],
+                    gr.update(visible=False), gr.update(visible=False), gr.update(value="", interactive=False),
+                    gr.update(interactive=False), gr.update(visible=False), gr.update(visible=True),
+                    gr.update(visible=False), ""]
 
-        new_btn.click(on_new, None, [sid, run_label, header, rail, brief, timeline, dock, decision, side, files,
-                                     start_view, run_view, new_btn, alert])
+        new_btn.click(on_new, None, [sid, run_label, header, rail, progress, chatbot, yes_btn, no_btn, msg, send_btn,
+                                     welcome_view, form_view, run_view, alert])
     return demo
 
 

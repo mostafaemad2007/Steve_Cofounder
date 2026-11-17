@@ -100,10 +100,11 @@ Agent `operate`; tools: local model, `[SIMULATED]` fixtures, the cost data.
 
 ## Gates
 
-Thresholds live in `gates.yaml`, are loaded once at the start of a run and fingerprinted; any change to the file or the loaded values during a run raises `ThresholdLocked`. Gates return **go**, **repeat**, **pivot** or **stop**, calculated from numbers — never from the model's opinion. A failed evidence gate can never be overridden into go: the founder may accept stop or pivot, or revise the idea and run again.
+Thresholds live in `gates.yaml`, are loaded once at the start of a run and fingerprinted; any change to the file or the loaded values during a run raises `ThresholdLocked`. Gates return **go**, **repeat**, **pivot** or **stop** by applying these pre-set rules. The inputs are counts and calculations, with one exception: the Phase 1 verdict (strong, promising, weak or not viable), which the model gives from the sources it read, with its reasons in `outputs/phase1_step2_*`. Which verdicts stop the run is fixed in `gates.yaml` (`stop_verdicts`) before the run, and a STOP can never be turned into go. A failed evidence gate can never be overridden into go: the founder may accept stop or pivot, or revise the idea and run again.
 
 | Gate | Pass condition | On failure |
 |---|---|---|
+| G1 Discover (early) | right after Phase 1 step 2: the sourced verdict is not `weak` or `not_viable` | **stop at once**, without the remaining steps, with the reasons and what would change the decision |
 | G1 Discover | ≥3 alternatives compared, ≥5 claims with real source URLs, founder fit (budget covers the planning period, enough weekly hours, no blocking skill gap) | pivot, or stop when the founder does not fit |
 | G2 Validate | `[SIMULATED]` sign-ups reach the pre-set target, plus founder approval | stop below half the target, otherwise pivot |
 | G3 Build | all MVP tests pass and user docs exist | repeat, max 3, then stop |

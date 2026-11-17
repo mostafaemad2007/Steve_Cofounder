@@ -2,8 +2,9 @@
 
     python tests/browser_check.py
 
-It serves the page with the scripted test model, then clicks through the weak run to its STOP and
-part of the strong run, the way a founder would, and saves screenshots to /tmp/shots.
+It serves the page with the scripted test model and goes through it the way a founder would: the welcome
+page, the idea form, a whole run in the chat (buttons and typed messages), a STOP shown in the chat, and
+laptop and phone sizes. Screenshots go to /tmp/shots.
 """
 import shutil
 import sys
@@ -16,7 +17,7 @@ sys.path[:0] = [str(ROOT), str(ROOT / "tests")]
 
 from playwright.sync_api import sync_playwright   # noqa: E402
 
-from fake_model import FakeModel                   # noqa: E402
+from fake_model import FakeModel, variant          # noqa: E402
 from venturegate.app import ConsoleApp, build_ui   # noqa: E402
 from venturegate.llm import LLM                    # noqa: E402
 from venturegate.logger import DecisionLogger      # noqa: E402
@@ -34,15 +35,22 @@ for i in range(1, 4):
 shutil.copy(ROOT / "gates.yaml", TMP / "gates.yaml")
 
 
-def factory(brief, mode):
+def factory(brief, mode, overrides=None):
     logger = DecisionLogger(TMP / "decision_log.json")
-    llm = LLM(mode=mode, model="qwen3:4b", logger=logger, replay_dir=TMP / "replay", transport=FakeModel())
+    llm = LLM(mode=mode, model="qwen3:4b", logger=logger, replay_dir=TMP / "replay", transport=FakeModel(overrides))
     return Pipeline(brief, llm=llm, logger=logger, sources=SourceLibrary(TMP / "sources"), out_dir=TMP / "outputs",
                     state_dir=TMP / "state", gates_path=TMP / "gates.yaml")
 
 
 demo = build_ui(ConsoleApp(factory))
 demo.queue().launch(server_port=7861, prevent_thread_lock=True, allowed_paths=[str(TMP / "outputs")],
+                    show_api=False, quiet=True)
+# a second page where Steve's research rates the idea WEAK, to see the automatic STOP in the chat
+WEAK = {"find_opportunities": [variant("find_opportunities", verdict="weak",
+                                       verdict_reasons=["Many free chatbots already answer any question.",
+                                                        "There is no clear group of customers."])]}
+weak = build_ui(ConsoleApp(lambda brief, mode: factory(brief, mode, WEAK)))
+weak.queue().launch(server_port=7862, prevent_thread_lock=True, allowed_paths=[str(TMP / "outputs")],
                     show_api=False, quiet=True)
 failures = []
 MEASURE = """() => {
@@ -68,17 +76,27 @@ def check(cond, message):
         failures.append(message)
 
 
-def click_primary_until(page, done_selector, limit=40, button_text=None):
+def answer_until(page, stop_text, limit=80):
+    """Press the main quick-reply button (or answer a question) until stop_text appears in the chat."""
     for _ in range(limit):
-        if done_selector and page.locator(done_selector).count():
+        if page.locator("#vg-chat", has_text=stop_text).count():
             return True
-        if button_text and button_text in page.locator("#vg-dock button.vg-btn-primary").inner_text():
-            return True
-        button = page.locator("#vg-dock button.vg-btn-primary")
-        button.wait_for(state="visible", timeout=15000)
-        button.click()
-        page.wait_for_timeout(400)
-    return bool(done_selector) and page.locator(done_selector).count() > 0
+        yes = page.locator("#vg-quick button").first
+        box = page.locator("#vg-center textarea").first
+        if yes.is_visible():
+            yes.click()
+        elif box.is_enabled():
+            box.fill("Fresh graduates in Cairo and Alexandria")
+            box.press("Enter")
+        page.wait_for_timeout(500)
+    return page.locator("#vg-chat", has_text=stop_text).count() > 0
+
+
+def open_form(page, port):
+    page.goto(f"http://127.0.0.1:{port}/", wait_until="domcontentloaded")
+    page.wait_for_selector("text=Meet Steve")
+    page.get_by_role("button", name="Get started: tell Steve your idea").click()
+    page.wait_for_selector("text=What do you want to build?")
 
 
 with sync_playwright() as pw:
@@ -86,74 +104,92 @@ with sync_playwright() as pw:
     page = browser.new_page(viewport={"width": 1440, "height": 900})   # a typical laptop screen
     page.route("**/fonts.googleapis.com/**", lambda route: route.abort())   # sandbox has no internet
     page.route("**/fonts.gstatic.com/**", lambda route: route.abort())
+
+    # 1. welcome page
     page.goto("http://127.0.0.1:7861/", wait_until="domcontentloaded")
-    page.wait_for_selector("text=What do you want to build?")
-    page.screenshot(path=str(SHOTS / "1-start.png"), full_page=True)
+    page.wait_for_selector("text=Meet Steve")
+    page.screenshot(path=str(SHOTS / "1-welcome.png"), full_page=True)
     check(page.locator(".vg-header").count() == 1, "header renders")
-    check(page.locator("text=Steve will not").count() == 1, "start side panel renders")
+    for text in ("How it works", "The six phases", "When Steve says stop", "Labels you will see", "Steve will never"):
+        check(page.locator(f"text={text}").count() == 1, f"welcome page explains: {text}")
+    check(page.get_by_role("button", name="Weak idea: ends in STOP").count() == 0, "no weak-idea option on the page")
 
-    # weak run
-    page.get_by_role("button", name="Weak idea: ends in STOP").click()
-    page.wait_for_timeout(500)
-    idea = page.get_by_label("Your idea (a digital product)").input_value()
-    check("chatbot" in idea, "loading the weak example fills the form")
-    page.get_by_role("button", name="Start with Steve").click()
-    page.wait_for_selector("text=Steve is waiting for your decision", timeout=15000)
-    page.screenshot(path=str(SHOTS / "2-decision.png"), full_page=True)
-    check(page.locator(".vg-step.current").count() == 1, "the step awaiting a decision is highlighted")
-    check(page.locator("#vg-dock button", has_text="Request changes").is_visible(), "Request changes is offered")
-
-    # empty "Request changes" is refused with a message, and nothing moves on
-    page.locator("#vg-dock button.vg-btn-secondary").click()
-    page.wait_for_selector("text=Write what should change", timeout=10000)
-    check(page.locator(".vg-step").count() == 1, "an empty change request does not advance the run")
-
-    stopped = click_primary_until(page, ".vg-stamp")
-    page.wait_for_timeout(600)
-    page.screenshot(path=str(SHOTS / "3-stop.png"), full_page=True)
-    check(stopped, "the weak run reaches the STOP card")
-    check(page.locator("text=12 of 100").count() >= 1, "STOP card quotes 12 of 100")
-    check(page.locator(".vg-rail li.stop").count() == 1 and page.locator(".vg-rail li.skipped").count() == 4,
-          "phase rail shows Gate 2 STOP and four phases not reached")
-    check(not page.locator("#vg-dock").is_visible(), "no decision panel after the run ends")
-    check(page.get_by_role("button", name="Start a new brief").is_visible(), "Start a new brief is offered")
-
-    # a file link opens the real output
-    href = page.locator(".vg-gate.stop a.vg-file").first.get_attribute("href")
-    response = page.request.get("http://127.0.0.1:7861" + href)
-    check(response.ok and "STOP" in response.text(), "the STOP report file link serves the real file")
-
-    # strong run, as far as the first MOCKED approval
-    page.get_by_role("button", name="Start a new brief").click()
+    # 2. the idea form
+    page.get_by_role("button", name="Get started: tell Steve your idea").click()
     page.wait_for_selector("text=What do you want to build?")
-    page.get_by_role("button", name="Strong idea: all six phases").click()
-    page.wait_for_timeout(400)
-    page.get_by_role("button", name="Start with Steve").click()
-    page.wait_for_selector("text=Steve is waiting for your decision", timeout=15000)
-    reached = click_primary_until(page, None, limit=40, button_text="MOCKED")
-    page.wait_for_timeout(400)
-    page.screenshot(path=str(SHOTS / "4-mocked-approval.png"), full_page=True)
-    check(reached, "the strong run reaches a MOCKED publish approval")
-    label = page.locator("#vg-dock button.vg-btn-primary").inner_text()
-    check("MOCKED" in label, f"the approve button says MOCKED ({label!r})")
+    check(page.get_by_label("Your skills").count() == 0, "the form does not ask for skills")
+    page.get_by_role("button", name="Fill in an example idea for me").click()
+    page.wait_for_timeout(500)
+    check("CV" in page.get_by_label("Your idea (a digital product)").input_value(), "the example fills the form")
+    page.screenshot(path=str(SHOTS / "2-form.png"), full_page=True)
 
-    # laptop screens: the decision panel must be on screen without scrolling the page
+    # 3. the chat
+    page.get_by_role("button", name="Start working with Steve").click()
+    page.get_by_role("button", name="Yes, this is right. Continue").wait_for(timeout=15000)
+    page.screenshot(path=str(SHOTS / "3-chat.png"))
+    check(page.locator("#vg-chat", has_text="Digital product: yes").count() == 1,
+          "the first report is written inside the chat")
+    check(page.get_by_role("button", name="Stop working on this idea").is_visible(), "a stop button is offered")
+
+    page.locator("#vg-center textarea").first.press("Enter")                     # empty message
+    page.wait_for_selector("text=Type a message first", timeout=10000)
+    check(page.locator("#vg-chat .user.message").count() == 0, "an empty message is not sent")
+
+    page.get_by_role("button", name="Yes, this is right. Continue").click()
+    page.get_by_role("button", name="Yes, this is right. Continue").wait_for(timeout=15000)
+    page.wait_for_timeout(400)
+    box = page.locator("#vg-center textarea").first
+    box.fill("Focus on data analyst roles only.")
+    box.press("Enter")
+    page.wait_for_selector("text=Revising", timeout=15000)
+    check(page.locator("#vg-chat .user.message", has_text="Focus on data analyst roles only.").count() == 1,
+          "a typed message appears in the chat as the founder's message")
+    page.get_by_role("button", name="Yes, this is right. Continue").wait_for(timeout=15000)
+    check(page.locator("#vg-chat", has_text="Digital product: yes").count() == 1,
+          "earlier messages stay visible in the chat history")
+
+    reached = answer_until(page, "practice only (MOCKED)")
+    label = page.locator("#vg-quick button").first.inner_text()
+    page.screenshot(path=str(SHOTS / "4-mocked-approval.png"))
+    check(reached and "practice only" in label, f"a MOCKED approval is explained and labelled ({label!r})")
+
+    # laptop screens: the chat box and buttons are on screen without scrolling the page
     for width, height in ((1366, 768), (1440, 900)):
         page.set_viewport_size({"width": width, "height": height})
         page.wait_for_timeout(300)
-        box = page.locator("#vg-dock").bounding_box()
+        box = page.locator("#vg-center textarea").first.bounding_box()
         if "--measure" in sys.argv:
             print(page.evaluate(MEASURE))
         page_height = page.evaluate("document.documentElement.scrollHeight")
         check(box is not None and box["y"] + box["height"] <= height and page_height <= height + 2,
-              f"at {width}x{height} the decision panel is fully visible and the page itself does not scroll")
+              f"at {width}x{height} the message box is visible and the page itself does not scroll")
     page.set_viewport_size({"width": 1366, "height": 768})
-    page.screenshot(path=str(SHOTS / "4b-laptop-1366.png"))
+
+    finished = answer_until(page, "All six phases are done")
+    page.screenshot(path=str(SHOTS / "5-finished.png"))
+    check(finished, "a run goes through all six phases in the chat")
+    check(not page.locator("#vg-quick button").first.is_visible(), "no answer buttons after the run ends")
+    new = page.get_by_role("button", name="Start over with a new idea").bounding_box()
+    check(new is not None and new["y"] + new["height"] <= 768, "Start over is offered and on screen on a laptop")
+
+    # 4. a STOP, shown plainly in the chat
+    open_form(page, 7862)
+    page.get_by_role("button", name="Fill in an example idea for me").click()
+    page.wait_for_timeout(400)
+    page.get_by_role("button", name="Start working with Steve").click()
+    page.get_by_role("button", name="Yes, this is right. Continue").wait_for(timeout=15000)
+    stopped = answer_until(page, "I don't think this idea is ready")
+    page.wait_for_timeout(500)
+    page.screenshot(path=str(SHOTS / "6-stop.png"))
+    check(stopped and page.locator("#vg-chat", has_text="Many free chatbots already answer").count() >= 1,
+          "a weak idea stops by itself and the chat explains why")
+    check(page.locator("#vg-chat", has_text="Lean Canvas").count() == 0, "no later steps run after the STOP")
+    check(page.locator("#vg-chat", has_text="What could change my mind").count() == 1, "the STOP says what would help")
 
     # phone width
     page.set_viewport_size({"width": 390, "height": 844})
     page.wait_for_timeout(400)
-    page.screenshot(path=str(SHOTS / "5-phone.png"), full_page=False)
+    page.screenshot(path=str(SHOTS / "7-phone.png"), full_page=False)
     width = page.evaluate("document.documentElement.scrollWidth")
     check(width <= 400, f"no sideways scrolling at phone width (page is {width}px wide)")
     browser.close()

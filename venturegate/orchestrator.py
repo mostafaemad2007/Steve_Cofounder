@@ -53,6 +53,11 @@ WHAT_WOULD_CHANGE = {
     5: ["A mock sale-to-delivery flow that passes every check."],
     6: ["Demand signals at or above target, and a budget covering the planning period."],
 }
+VERDICT_WOULD_CHANGE = [
+    "A narrower group of customers whose problem the competitors Steve found do not solve well.",
+    "Evidence that people already spend time or money on this problem, from real sources.",
+    "A clear difference from the existing products, stated in one sentence.",
+]
 RUN_ERRORS = (ModelUnavailable, BadModelOutput, OutputRejected, ThresholdLocked)
 
 
@@ -239,30 +244,32 @@ class Pipeline:
         raise FounderStopped(f"'{title}' was revised {self.max_revisions} times without agreement, so the run stopped.")
 
     # == gates ================================================================
-    def gate_report(self, phase: int, decision: GateDecision) -> Path:
+    def gate_report(self, phase: int, decision: GateDecision, changes: list | None = None) -> Path:
         title = f"Gate {phase} ({GATE_NAMES[phase]}): {decision.outcome.upper()}"
         md = decision.to_markdown(title)
         if decision.outcome == "stop":
             md += ("\n## What this means\n\nThe system recommends **STOP**. This is the pre-registered rule applied "
                    "to the evidence, not an opinion, and it is not softened. Continuing would mean spending time "
                    "and money without the evidence the plan needs.\n\n## What would change this decision\n\n"
-                   + "\n".join(f"- {item}" for item in WHAT_WOULD_CHANGE[phase]) + "\n")
+                   + "\n".join(f"- {item}" for item in (changes or WHAT_WOULD_CHANGE[phase])) + "\n")
         elif decision.outcome == "pivot":
             md += ("\n## What this means\n\nThe evidence does not support continuing as it stands. The system "
                    "recommends **PIVOT**: change the segment, the offer or the idea and run Phase 1 again, or stop.\n")
         return self.ctx.writer.gate(phase, f"{GATE_NAMES[phase]}-{decision.outcome}", md)
 
-    def _say_gate(self, phase: int, decision: GateDecision, path: Path) -> Say:
+    def _say_gate(self, phase: int, decision: GateDecision, path: Path, changes: list | None = None) -> Say:
         data = {"metrics": dict(decision.metrics), "reasons": list(decision.reasons), "name": GATE_NAMES[phase]}
         if decision.outcome == "stop":
-            data["what_would_change"] = list(WHAT_WOULD_CHANGE[phase])
+            data["what_would_change"] = list(changes or WHAT_WOULD_CHANGE[phase])
         return Say(f"Gate {phase}: {decision.outcome.upper()}. " + " ".join(decision.reasons), [str(path)],
                    kind="gate", phase=phase, outcome=decision.outcome, data=data)
 
-    def handle_gate(self, phase: int, decision: GateDecision, *, approve_go: bool = True) -> Events:
+    def handle_gate(self, phase: int, decision: GateDecision, *, approve_go: bool = True,
+                    early_verdict: bool = False) -> Events:
         """None to continue, "restart" to pivot back to Phase 1, "repeat", or a Done."""
-        path = self.gate_report(phase, decision)
-        yield self._say_gate(phase, decision, path)
+        changes = VERDICT_WOULD_CHANGE if early_verdict else None
+        path = self.gate_report(phase, decision, changes)
+        yield self._say_gate(phase, decision, path, changes)
         if decision.outcome == "go":
             if approve_go:
                 reply = yield from self.ask(f"gate{phase}", "gate",
@@ -312,7 +319,12 @@ class Pipeline:
             self.logger.log("guard", "refuse_request", category="excluded_product", detail=reason)
             yield Say(f"Refused: the idea is out of scope ({reason}).", [str(path)], kind="refusal")
             return Done("refused", f"Out of scope: {reason}.")
-        yield from self.step("phase1_step2", "Opportunities and honest verdict", agent.opportunities)
+        verdict = yield from self.step("phase1_step2", "Opportunities and honest verdict", agent.opportunities)
+        early = self.gates.g1_verdict(verdict=verdict.data["verdict"], reasons=verdict.data.get("verdict_reasons", []),
+                                      alternatives=self.ctx.state.get("alternatives", 0),
+                                      sourced_claims=self.ctx.ledger.sourced_count(b.run))
+        if early is not None:                      # a weak idea: stop now, without the remaining steps
+            return (yield from self.handle_gate(1, early, early_verdict=True))
         if not b.target_market:
             b.target_market = yield from self.question(
                 "phase1_target_market", "Who is your target market? Name the place, the kind of customer and their language.")

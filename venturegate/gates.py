@@ -103,6 +103,21 @@ class Gates:
             return self._decide(gate, "stop", reasons + [f"Still failing after {max_repeats} attempts."], metrics)
         return self._decide(gate, "repeat", reasons, metrics)
 
+    # == G1 Discover, early: the honest verdict ===========================
+    def g1_verdict(self, *, verdict: str, reasons: list[str], alternatives: int,
+                   sourced_claims: int) -> GateDecision | None:
+        """A STOP as soon as the sourced Phase 1 verdict is one of the pre-registered stop verdicts.
+        None means "no early stop": the full Gate 1 check still runs after step 6."""
+        self._verify_locked()
+        stop_verdicts = self._thresholds["G1_discover"].get("stop_verdicts", [])
+        if verdict not in stop_verdicts:
+            return None
+        metrics = {"verdict from the evidence": verdict.replace("_", " ").upper(),
+                   "verdicts that stop the run": ", ".join(v.replace("_", " ") for v in stop_verdicts),
+                   "alternatives compared": alternatives, "claims with real sources so far": sourced_claims}
+        return self._decide("G1", "stop", [
+            f"The evidence gives this idea a {verdict.replace('_', ' ').upper()} verdict.", *reasons], metrics)
+
     # == G1 Discover: evidence threshold ==================================
     def g1_discover(self, *, alternatives: int, sourced_claims: int, runway_months: float,
                     hours_per_week: float, skills_blocking: bool = False) -> GateDecision:

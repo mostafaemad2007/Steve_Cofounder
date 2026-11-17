@@ -160,10 +160,11 @@ class DiscoverAgent(Agent):
 
         d, ranked = self.guarded(build, feedback)
         self.ctx.state["verdict"] = f"{d['verdict']}: {d['verdict_reasons'][0]}"
+        self.ctx.state["verdict_reasons"] = list(d["verdict_reasons"])
         self.ctx.state["alternatives"] = len(d["options"])
         path = self.ctx.writer.write(1, 2, "opportunities", self.latest)
         return StepResult(f"Verdict: {d['verdict'].replace('_', ' ').upper()}. {d['verdict_reasons'][0]}",
-                          [path], {"verdict": d["verdict"], "options": ranked})
+                          [path], {"verdict": d["verdict"], "verdict_reasons": list(d["verdict_reasons"]), "options": ranked})
 
     # 3 --------------------------------------------------------------------
     def market(self, feedback=None) -> StepResult:
@@ -198,8 +199,11 @@ class DiscoverAgent(Agent):
                 "direction or differentiation); list only those that truly apply. Then fill the "
                 "intellectual property checklist with exactly one entry for each area: trademark, "
                 "copyright_licensing, platform_terms, patents, exclusive_rights_regulation. Use status "
-                "unknown whenever the sources do not settle it. Finally list the founder's skill gaps and "
-                "whether each one blocks building the product.")
+                "unknown whenever the sources do not settle it. Finally list the skills needed to build and "
+                "sell this product (up to four), each with a free or low-cost way to learn it or get it done "
+                "within the budget and hours. Mark a skill as blocking only if there is no such way.")
+        if self.ctx.brief.skills:
+            task += f" The founder already has: {', '.join(self.ctx.brief.skills)}; leave those out."
 
         def check(d):
             areas = [item["area"] for item in d["ip_checklist"]]
@@ -211,7 +215,7 @@ class DiscoverAgent(Agent):
         def build(fb):
             d, srcmap = self.ask("improvements_ip_check", task, IMPROVE, check=check, feedback=fb,
                                  query=self.research("legal", f"{self.ctx.brief.idea} trademark licence terms of service copyright"))
-            md = ["# Improvements, intellectual property check and skill gaps", "", "## Suggested improvements", ""]
+            md = ["# Improvements, intellectual property check and skills needed", "", "## Suggested improvements", ""]
             for i, imp in enumerate(d["improvements"], 1):
                 md += [f"### Option {i}: {imp['title']}", "", f"- Change: {imp['change']}",
                        f"- Why: {imp['why']}", f"- Cost impact: {imp['cost_impact']}", ""]
@@ -226,7 +230,7 @@ class DiscoverAgent(Agent):
             unknown = [i["area"].replace("_", " ") for i in d["ip_checklist"] if i["status"] == "unknown"]
             if unknown:
                 md += ["", f"Still unknown: {', '.join(unknown)}."]
-            md += ["", "## Skill gaps", ""]
+            md += ["", "## Skills this idea needs, and how to cover them", ""]
             md += [f"- {g['skill']}: {'**BLOCKING**' if g['blocking'] else 'not blocking'}. {g['how_to_cover']}"
                    for g in d["skill_gaps"]] or ["- None identified."]
             md += ["", "## Evidence", ""] + self.claim_lines(d["claims"], srcmap, "phase1_step4")

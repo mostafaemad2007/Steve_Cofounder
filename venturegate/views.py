@@ -81,8 +81,8 @@ padding:1px 7px;border-radius:3px;white-space:nowrap;border:1px solid transparen
 .vg-tag.asm{background:#EEEAE3;color:#4A433A;border-color:#DCD5C9}
 .vg-tag.stop{background:var(--vg-stop-soft);color:var(--vg-stop-dark);border-color:#EFC2B1}
 .vg-tag.pivot,.vg-tag.repeat{background:var(--vg-gold-soft);color:var(--vg-gold-ink);border-color:#EED9A0}
-.vg-file{display:inline-flex;align-items:center;gap:6px;font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--vg-soil)!important;
-background:var(--vg-sand);border:1px solid #DCD5C9;border-radius:3px;padding:4px 8px;text-decoration:none;word-break:break-all}
+.vg-file{word-break:normal;overflow-wrap:break-word;display:inline-flex;align-items:center;gap:6px;font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--vg-soil)!important;
+background:var(--vg-sand);border:1px solid #DCD5C9;border-radius:3px;padding:4px 8px;text-decoration:none;}
 .vg-file:hover{border-color:#8C8379}
 .vg-header{background:var(--vg-soil);color:#FFFDF8;min-height:56px;padding:0 20px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px}
 .vg-grass{height:6px;background:repeating-linear-gradient(90deg,#5B9A36 0 12px,#4A8A2C 12px 18px,#6BAA40 18px 24px);border-bottom:3px solid #7A5534}
@@ -117,6 +117,45 @@ font:600 13px "Pixelify Sans",sans-serif;border:2px solid var(--vg-line);backgro
 .vg-step-head h2{font-size:15px}
 .vg-step.current .vg-step-head h2{font-size:18px}
 .vg-files{display:flex;flex-wrap:wrap;gap:6px}
+.vg-welcome{max-width:1100px;margin:0 auto}
+.vg-welcome-head{display:flex;gap:16px;align-items:center;margin:6px 0 10px}
+.vg-welcome h1{font-size:26px;margin:0 0 4px;color:#2B2620}.vg-welcome-head p{margin:0;color:#4A433A;font-size:15px}
+.vg-welcome-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:10px}
+.vg-welcome .vg-card{padding:12px 14px}.vg-welcome h2{font-size:15px;margin:0 0 6px;color:#2B2620}
+.vg-welcome ol,.vg-welcome ul{margin:0;padding-left:18px;font-size:13.5px;color:#2B2620;display:flex;flex-direction:column;gap:4px}
+.vg-small{font-size:12px;color:#5A5248;margin:6px 0 0}
+.vg-legend{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#2B2620}
+.vg-ok{background:#E3F0D8;border:2px solid #9CC57E;color:#22461A;padding:8px 12px;margin:0;font-size:14px}
+.vg-warn{background:#FBEFD5;border:2px solid #E0B03A;color:#5C3D05;padding:8px 12px;margin:0;font-size:14px}
+@media (max-width:900px){.vg-welcome-grid{grid-template-columns:1fr}}
+#vg-chat{border:2px solid #D9D2C3!important;background:#F7F3EA!important}
+#vg-chat .message-row{padding:2px 6px}
+#vg-chat .message-content>.prose>*:first-child{margin-top:0}
+#vg-chat .flex-wrap.role{gap:8px}
+#vg-chat .bot.message{background:#FFFDF7!important;border:2px solid #D9D2C3!important;color:#2B2620!important}
+#vg-chat .user.message{background:#E3F0D8!important;border:2px solid #9CC57E!important;color:#1F3A16!important}
+#vg-chat .message .message,#vg-chat [data-testid="bot"],#vg-chat [data-testid="user"]{background:transparent!important;border:0!important;box-shadow:none!important}
+#vg-chat .avatar-container{width:36px;height:36px;border:0;background:transparent}
+#vg-chat .prose,#vg-chat .prose *{color:#2B2620}
+#vg-chat .prose a{color:#2F5F1E;text-decoration:underline}
+#vg-chat .prose h2{font-size:17px;margin:2px 0}#vg-chat .prose h3{font-size:15px}#vg-chat .prose h4,#vg-chat .prose h5{font-size:14px}
+#vg-chat .prose table{font-size:12.5px;border-collapse:collapse}
+#vg-chat .prose th,#vg-chat .prose td{border:1px solid #D9D2C3;padding:3px 6px;background:transparent}
+#vg-chat .prose hr{margin:10px 0;border-color:#D9D2C3}
+#vg-quick button{min-height:44px}
+.vg-report{margin-top:8px;border:2px solid #D9D2C3;background:#FFFDF7}
+.vg-report>summary{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;
+  padding:7px 10px;font-weight:600;font-size:13px;color:#2F5F1E;background:#F3EFE4;list-style:none}
+.vg-report>summary::-webkit-details-marker{display:none}
+.vg-report>summary span::before{content:"▸ ";color:#2F5F1E}
+.vg-report[open]>summary span::before{content:"▾ "}
+.vg-dl{font-size:12px;font-weight:500;color:#4A433A!important}
+.vg-md{padding:4px 14px 10px;max-height:340px;overflow:auto;font-size:13.5px;line-height:1.5;color:#2B2620}
+.vg-md h1{font-size:17px;margin:10px 0 6px}.vg-md h2{font-size:15px;margin:12px 0 4px}.vg-md h3{font-size:14px;margin:10px 0 4px}
+.vg-md table{border-collapse:collapse;font-size:12.5px;margin:6px 0}
+.vg-md th,.vg-md td{border:1px solid #D9D2C3;padding:4px 6px;text-align:left;vertical-align:top;color:#2B2620}
+.vg-md th{background:#F3EFE4}.vg-md blockquote{margin:6px 0;padding:4px 10px;border-left:3px solid #D9D2C3;color:#4A433A}
+.vg-md code{background:#F3EFE4;padding:0 3px;color:#2B2620}
 .vg-working{flex-direction:row!important;align-items:center;gap:10px!important;border-style:dashed}
 .vg-dots{display:inline-flex;gap:4px;margin-left:auto}
 .vg-dots i{width:8px;height:8px;background:var(--vg-grass);animation:vg-blink 1.2s infinite}
@@ -211,7 +250,7 @@ SPECIAL_FILES = {"payment_test_log.md": "Sale and delivery test", "redteam_repor
                  "decision_log.json": "Every action Steve took"}
 
 
-NICE_NAMES = {"improvements-ip-check": "improvements and IP check", "costs-runway": "costs and runway",
+NICE_NAMES = {"intake": "your idea, as Steve understood it", "improvements-ip-check": "improvements and IP check", "costs-runway": "costs and runway",
               "lean-canvas": "Lean Canvas", "mvp-tests": "MVP test results", "user-docs": "user guide",
               "memo": "keep going or stop memo"}
 
@@ -227,6 +266,38 @@ def file_label(name: str) -> str:
     words = re.sub(r"\b(mvp|ip)\b", lambda w: w.group(1).upper(), words)
     label = ("Gate report: " + words) if m.group(1) == "gate" else words[:1].upper() + words[1:]
     return label + (" (preview)" if m.group(3) == "html" else "")
+
+
+_MD = None
+
+
+def render_markdown(text: str) -> str:
+    """Markdown report -> safe HTML (raw HTML in the report is shown as text, never run)."""
+    global _MD
+    if _MD is None:
+        from markdown_it import MarkdownIt
+        _MD = MarkdownIt("commonmark", {"html": False, "linkify": False}).enable("table")
+    out = _MD.render(text)
+    return out.replace("<a href=", '<a target="_blank" rel="noopener" href=')
+
+
+def reports_html(paths, open_first: bool = False) -> str:
+    """Each report readable inside the page (click to open), with a small download link.
+    Markdown reports are shown in place; other files (HTML previews, JSON) open in a new tab."""
+    parts, chips = [], []
+    for i, p in enumerate(p for p in (paths or []) if p):
+        path = Path(p)
+        if path.suffix == ".md" and path.exists():
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if len(text) > 60000:
+                text = text[:60000] + "\n\n(Report shortened here. Download it to read the rest.)"
+            parts.append(
+                f'<details class="vg-report"{" open" if open_first and i == 0 else ""}><summary>'
+                f'<span>Read the report: {e(file_label(path.name))}</span><a class="vg-dl" href="{file_url(p)}" download '
+                f'title="{e(path.name)}">Download</a></summary><div class="vg-md">{render_markdown(text)}</div></details>')
+        else:
+            chips.append(p)
+    return "".join(parts) + files_html(chips)
 
 
 def files_html(paths) -> str:
@@ -346,9 +417,9 @@ def step_html(ev: Say, current: bool) -> str:
     if current:
         return (f'<article class="vg-card vg-step current"><div class="vg-steve">{emblem(18)}<span><b>Steve</b> · '
                 f'waiting for your decision</span></div><div class="vg-step-head"><h2>{e(title)}</h2></div>'
-                f'<p>{_tagged(summary)}</p>{files_html(ev.files)}</article>')
+                f'<p>{_tagged(summary)}</p></article>')
     return (f'<article class="vg-card vg-step"><div class="vg-step-head">{CHECK}<h2>{e(title)}</h2></div>'
-            f'<p style="color:#4A433A">{_tagged(summary)}</p>{files_html(ev.files)}</article>')
+            f'<p style="color:#4A433A">{_tagged(summary)}</p>{reports_html(ev.files)}</article>')
 
 
 def gate_html(ev: Say) -> str:
@@ -360,7 +431,7 @@ def gate_html(ev: Say) -> str:
     if outcome != "stop":
         return (f'<article class="vg-card vg-gate {outcome}"><div class="vg-step-head">'
                 f'<span class="vg-tag {outcome}">{OUTCOME_LABEL.get(outcome, outcome.upper())}</span><h2>{title}</h2></div>'
-                f'<p style="color:#4A433A">{_tagged(" ".join(reasons))}</p>{files_html(ev.files)}</article>')
+                f'<p style="color:#4A433A">{_tagged(" ".join(reasons))}</p>{reports_html(ev.files)}</article>')
     metrics = data.get("metrics", {})
     meter = ""
     count, target = metrics.get("sign-ups [SIMULATED]"), metrics.get("pre-set target")
@@ -486,7 +557,7 @@ def decision_html(request: Request | None) -> str:
         prompt = prompt.split(": is this right?")[0] + ": does this look right to you?"
     return (f'<div class="vg"><div class="vg-decision-head">{emblem(20)}<h2>Steve is waiting for your decision</h2>'
             f'{KIND_TAGS.get(request.kind, "")}<span style="font-size:12px;color:#5A5248">Nothing continues until you '
-            f'choose</span></div><p style="margin-top:6px">{_tagged(prompt)}</p>{files_html(request.files)}</div>')
+            f'choose</span></div><p style="margin-top:6px">{_tagged(prompt)}</p>{reports_html(request.files, open_first=True)}</div>')
 
 
 # == the evidence panel =========================================================
@@ -553,6 +624,57 @@ def start_side_html(*, model: str, ready: bool, recorded: int, sources_loaded: i
             f'{g2["window_days"]} days</li>'
             f'<li>Your budget cannot cover {g1["min_runway_months"]:g} months of costs</li></ul>'
             f'<p style="font-size:12px;color:#5A5248">These limits are set before the run and cannot be changed during it.</p></section>')
+
+
+# == the chat page ================================================================
+def progress_html(records: list[dict], min_sourced: int) -> str:
+    """A small evidence counter under the six steps."""
+    sourced = len({(r["claim"].lower(), r["source_url"]) for r in records if r.get("source_url")})
+    assumptions = sum(1 for r in records if not r.get("source_url"))
+    cells = max(min_sourced, 1)
+    blocks = "".join(f'<span class="{"fill" if i < min(sourced, cells) else ""}"></span>' for i in range(cells))
+    return (f'<section class="vg vg-card vg-side" style="margin-top:12px"><div class="vg-label">Evidence so far</div>'
+            f'<div style="font-size:13px;color:#2B2620"><b style="font-size:20px">{sourced}</b> facts backed by a web '
+            f'page (Steve needs {min_sourced})</div><div class="vg-meter" style="margin:8px 0">{blocks}</div>'
+            f'<div style="font-size:12px;color:#5A5248">{assumptions} guess(es) without a source, marked ASSUMPTION</div>'
+            f'</section>')
+
+
+def welcome_html(*, thresholds: dict, ready: bool, why: str, recorded: int) -> str:
+    g1, g2 = thresholds["G1_discover"], thresholds["G2_validate"]
+    steps = "".join(f'<li><b>{name}</b>: {core.lower()}</li>' for _, name, core in PHASES)
+    if ready:
+        status = '<p class="vg-ok">Steve is ready. He runs privately on this laptop, for free.</p>'
+    else:
+        status = (f'<p class="vg-warn"><b>Steve is not ready yet.</b> {e(why)}'
+                  + (" Meanwhile you can watch a recorded example." if recorded else "") + '</p>')
+    return f"""<div class="vg vg-welcome">
+<div class="vg-welcome-head">{emblem(56)}<div><h1>Meet Steve, your honest AI cofounder</h1>
+<p>Steve helps you turn an idea for a digital product into a tested plan, one step at a time, and tells you
+plainly when the evidence says it will not work.</p></div></div>
+{status}
+<div class="vg-welcome-grid">
+<section class="vg-card"><h2>How it works</h2><ol>
+<li>You describe your idea in a few words.</li>
+<li>Steve researches the web and writes a short report for each step, right in the chat.</li>
+<li>You reply: approve it, tell him what to change, or stop. Nothing continues without you.</li></ol></section>
+<section class="vg-card"><h2>The six phases</h2><ol>{steps}</ol></section>
+<section class="vg-card"><h2>When Steve says stop</h2><ul>
+<li>His research rates the idea weak or not viable (he stops right away and explains why)</li>
+<li>Fewer than {g1["min_sourced_claims"]} facts backed by real web pages</li>
+<li>Fewer than {g2["stop_below_ratio"]:.0%} of the {g2["signup_target"]} waitlist sign-ups aimed for in {g2["window_days"]} days</li>
+<li>Your budget cannot cover {g1["min_runway_months"]:g} months of costs</li></ul>
+<p class="vg-small">These limits are fixed before you start and cannot be changed during the run.</p></section>
+<section class="vg-card"><h2>Labels you will see</h2><div class="vg-legend">
+<span><span class="vg-tag src">SOURCED</span> from a web page Steve read</span>
+<span><span class="vg-tag asm">ASSUMPTION</span> a guess with no source behind it</span>
+<span><span class="vg-tag sim">[SIMULATED]</span> sample numbers, not real data</span>
+<span><span class="vg-tag sim">MOCKED</span> practice only: nothing is really sent or paid</span></div></section>
+<section class="vg-card"><h2>Steve will never</h2><ul>
+<li>Promise or estimate income</li><li>Write fake reviews or sign-ups</li><li>Take payments of any kind</li>
+<li>Publish or send anything without your approval</li>
+<li>Work on physical, financial, crypto, health or legal products</li></ul></section>
+</div></div>"""
 
 
 def alert_html(text: str | None) -> str:

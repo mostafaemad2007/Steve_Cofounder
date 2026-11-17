@@ -10,9 +10,11 @@ docker compose up
 
 Then open http://localhost:7860.
 
-On the page, click **Weak idea: ends in STOP** or **Strong idea: all six phases**, then **Start with Steve**, and decide at each step: *Approve and continue*, *Request changes* or *Stop the run*. Every output file is linked as it is written.
+On the page, read the short introduction and press **Get started**, describe your idea (or press **Fill in an example idea for me**), then **Start working with Steve**. Steve works with you in a chat: he sends each step's report as a message, and you answer with a button (**Yes, this is right. Continue** or **Stop**) or type what he should change. The whole conversation stays on screen, and every report is also saved in `outputs/`.
 
-The first start downloads the local model (`qwen3:4b`, about 2.5 GB; no GPU needed). Until it is ready, choose **Replay a recorded run** to watch a recorded real run, clearly labelled `[REPLAY MODE]`.
+The weak example that ends in STOP (12 of 100 [SIMULATED] sign-ups) runs from the terminal: `docker compose run --rm app python -m venturegate run --idea examples/weak_idea.yaml`.
+
+The first start downloads the local model (`qwen3:4b`, about 2.5 GB; no GPU needed). Until it is ready, press **Watch a recorded example** on the first page to replay a recorded real run, clearly labelled `[REPLAY MODE]`.
 
 From a terminal instead: `docker compose run --rm app python -m venturegate run --idea examples/weak_idea.yaml`.
 Run the tests: `docker compose run --rm app pytest`.

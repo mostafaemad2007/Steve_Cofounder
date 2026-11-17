@@ -364,3 +364,31 @@ def test_the_founder_cannot_pivot_forever(tmp_path):
     assert h.actions().count("pivot_back") == 1                        # max_pivots = 1
     assert h.model.calls.count("restate_idea") == 2
     assert done.outcome == "stopped" and done.last_gate == "G1"
+
+
+# == a weak idea stops by itself, right after Steve's honest verdict ==========
+@pytest.mark.parametrize("verdict", ["weak", "not_viable"])
+def test_a_weak_verdict_stops_the_run_before_the_other_steps(tmp_path, verdict):
+    h = Harness(tmp_path, "strong", overrides={"find_opportunities": [variant(
+        "find_opportunities", verdict=verdict,
+        verdict_reasons=["Many free chatbots already answer any question.", "No clear group of customers."])]})
+    done = h.run()
+
+    assert done.outcome == "stopped" and done.last_gate == "G1"
+    assert h.gates() == [("G1", "stop")]
+    assert "Many free chatbots already answer any question." in done.summary
+    files = h.files()
+    assert any(n.startswith("phase1_gate_") and n.endswith("-stop.md") for n in files)
+    assert not any(n.startswith(("phase1_step3", "phase1_step4", "phase1_step5", "phase2")) for n in files)
+    calls = h.model.calls
+    assert "find_opportunities" in calls and not {"market_fit", "improvements_ip_check", "list_costs", "lean_canvas"} & set(calls)
+    stop = next(h.out.glob("phase1_gate_*-stop.md")).read_text(encoding="utf-8")
+    assert verdict.replace("_", " ").upper() in stop and "What would change this decision" in stop
+    assert_log_is_valid(h.log)
+
+
+@pytest.mark.parametrize("verdict", ["strong", "promising"])
+def test_a_good_verdict_carries_on_to_the_full_gate_one(tmp_path, verdict):
+    h = Harness(tmp_path, "strong", overrides={"find_opportunities": [variant("find_opportunities", verdict=verdict)]})
+    assert h.run().outcome == "completed"
+    assert h.gates()[0] == ("G1", "go")

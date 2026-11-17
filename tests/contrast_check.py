@@ -35,6 +35,7 @@ shutil.copy(ROOT / "gates.yaml", TMP / "gates.yaml")
 
 
 def factory(brief, mode):
+    brief.mock_scenario = "weak"           # so the audit also sees a STOP in the chat
     logger = DecisionLogger(TMP / "decision_log.json")
     llm = LLM(mode=mode, model="qwen3:4b", logger=logger, replay_dir=TMP / "replay", transport=FakeModel())
     return Pipeline(brief, llm=llm, logger=logger, sources=SourceLibrary(TMP / "sources"), out_dir=TMP / "outputs",
@@ -101,24 +102,37 @@ with sync_playwright() as pw:
         page = browser.new_page(viewport={"width": 1440, "height": 900}, color_scheme=scheme)
         page.route("**/fonts.g*/**", lambda route: route.abort())
         page.goto("http://127.0.0.1:7863/", wait_until="domcontentloaded")
+        page.wait_for_selector("text=Meet Steve")
+        if scheme == "dark":
+            page.screenshot(path="/tmp/shots/dark-welcome.png")
+        audit(page, f"{scheme} · welcome page")
+        page.get_by_role("button", name="Get started: tell Steve your idea").click()
         page.wait_for_selector("text=What do you want to build?")
-        if scheme == "dark":
-            page.screenshot(path="/tmp/shots/dark-start.png")
-        audit(page, f"{scheme} · start screen")
-        page.get_by_role("button", name="Weak idea: ends in STOP").click()
+        audit(page, f"{scheme} · idea form")
+        page.get_by_role("button", name="Fill in an example idea for me").click()
         page.wait_for_timeout(400)
-        audit(page, f"{scheme} · start screen with the example loaded")
-        page.locator("#vg-start button.vg-btn-primary").click()
-        page.wait_for_selector("#vg-dock", state="visible", timeout=15000)
-        audit(page, f"{scheme} · a step waiting for a decision")
+        audit(page, f"{scheme} · idea form with the example loaded")
+        page.get_by_role("button", name="Start working with Steve").click()
+        page.locator("#vg-quick button").first.wait_for(state="visible", timeout=15000)
+        page.wait_for_timeout(400)
+        audit(page, f"{scheme} · the chat, waiting for an answer")
         if scheme == "dark":
-            page.screenshot(path="/tmp/shots/dark-decision.png")
-        for _ in range(30):
-            if page.locator(".vg-stamp").count():
+            page.screenshot(path="/tmp/shots/dark-chat.png")
+        box = page.locator("#vg-center textarea").first
+        box.fill("Focus on data analyst roles only.")
+        box.press("Enter")
+        page.locator("#vg-quick button").first.wait_for(state="visible", timeout=15000)
+        for _ in range(60):
+            if page.locator("#vg-chat", has_text="I don't think this idea is ready").count():
                 break
-            page.locator("#vg-dock button.vg-btn-primary").click()
+            if page.locator("#vg-quick button").first.is_visible():
+                page.locator("#vg-quick button").first.click()
+            else:
+                box.fill("Fresh graduates in Cairo")
+                box.press("Enter")
             page.wait_for_timeout(400)
-        audit(page, f"{scheme} · the STOP screen")
+        page.wait_for_timeout(400)
+        audit(page, f"{scheme} · the STOP in the chat")
         page.close()
     browser.close()
 

@@ -40,7 +40,7 @@ def app(tmp_path):
 
 def form(app, name):
     ex = app.load_example(name)
-    return {k: ex[k] for k in ("run", "idea", "skills", "market", "budget", "currency", "hours", "values",
+    return {k: ex[k] for k in ("run", "idea", "market", "budget", "currency", "hours", "values",
                                "language", "scenario")}
 
 
@@ -141,7 +141,7 @@ def test_an_unexpected_crash_does_not_freeze_the_page():
             raise KeyError("boom")
     session = Session.__new__(Session)
     session.brief, session.pipeline, session.events, session.pending, session.done = None, Broken(), [], None, None
-    session.started, session.generator = False, Broken().run()
+    session.started, session.generator, session.transcript = False, Broken().run(), []
     list(session.advance())
     assert session.done.outcome == "error" and "KeyError" in session.done.summary
 
@@ -305,3 +305,109 @@ def test_examples_load_into_the_form(app):
 def test_the_gradio_page_builds(app):
     demo = __import__("venturegate.app", fromlist=["build_ui"]).build_ui(app)
     assert type(demo).__name__ == "Blocks"
+
+
+def test_the_form_does_not_ask_for_skills():
+    from venturegate.app import build_ui
+    blocks = build_ui(ConsoleApp(lambda *a, **k: None))
+    labels = [getattr(c, "label", None) for c in blocks.blocks.values()]
+    assert "Your skills" not in labels and "Your idea (a digital product)" in labels
+
+
+def test_reports_can_be_read_inside_the_page(tmp_path):
+    from venturegate.views import reports_html
+    report = tmp_path / "phase1_step1_weak-intake.md"
+    report.write_text("# Idea intake\n\nA CV pack.\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n<script>alert(1)</script>",
+                      encoding="utf-8")
+    shown = reports_html([str(report)], open_first=True)
+    assert "<details class=\"vg-report\" open>" in shown and "<h1>Idea intake</h1>" in shown and "<table>" in shown
+    assert "<script>" not in shown and "Download" in shown                      # report HTML is never run
+    assert " open>" not in reports_html([str(report)])
+
+
+# == the chat ===================================================================
+from venturegate import chat   # noqa: E402
+
+
+@pytest.mark.parametrize("kind, step, action, text, approve, said", [
+    ("confirm", "x:s", "yes", "", True, "Yes, this is right. Continue"),
+    ("confirm", "x:s", "no", "", False, "Stop working on this idea"),
+    ("confirm", "x:s", "send", "looks good", True, "looks good"),
+    ("confirm", "x:s", "send", "ok", True, "ok"),
+    ("confirm", "x:s", "send", "Make it cheaper and focus on Cairo", False, "Make it cheaper and focus on Cairo"),
+    ("confirm", "x:s", "send", "stop", False, "stop"),
+    ("gate", "x:gate1", "send", "yes", True, "yes"),
+    ("gate", "x:gate1", "yes", "", True, "Yes, move on to Phase 2: Validate"),
+    ("publish", "x:p", "yes", "", True, "Approve (practice only)"),
+    ("publish", "x:p", "send", "no", False, "no"),
+    ("question", "x:q", "send", "Graduates in Alexandria", None, "Graduates in Alexandria"),
+    ("gate", "x:gate2_pivot", "send", "A CV pack for nursing graduates in Egypt", True,
+     "A CV pack for nursing graduates in Egypt"),
+])
+def test_chat_reply_for_each_step(kind, step, action, text, approve, said):
+    prompt = "Gate 1 passed. Continue to Phase 2?" if step == "x:gate1" else "?"
+    reply, problem, message = chat.reply_for(Request(step, kind, prompt), action, text)
+    assert problem is None and reply.approve is approve and message == said
+    if approve is False and len(text) > 20:
+        assert reply.text == text                     # Steve redoes the step with these changes
+
+
+@pytest.mark.parametrize("kind, step, action, text, problem", [
+    ("confirm", "x:s", "send", "", "Type a message first"),
+    ("question", "x:q", "send", "", "Type your answer first"),
+    ("question", "x:q", "yes", "", "Choose one of the buttons"),
+    ("gate", "x:gate2_pivot", "send", "idk", "one full sentence"),
+    ("gate", "x:gate1", "send", "what does this mean exactly?", "press one of the buttons"),
+    ("publish", "x:p", "send", "maybe later, after lunch", "press one of the buttons"),
+])
+def test_chat_refuses_unclear_answers_without_moving_on(kind, step, action, text, problem):
+    reply, why, _ = chat.reply_for(Request(step, kind, "?"), action, text)
+    assert reply is None and problem in why
+
+
+def test_every_button_says_what_it_does():
+    labels = {k: chat.quick_replies(Request("x:s", k, "Gate 3 passed. Continue to Phase 4?"))
+              for k in ("confirm", "gate", "publish", "question")}
+    assert labels["confirm"]["yes"] == "Yes, this is right. Continue"
+    assert labels["gate"]["yes"] == "Yes, move on to Phase 4: Commercial setup"
+    assert "practice only" in labels["publish"]["yes"]
+    assert labels["question"]["yes"] is None and labels["question"]["can_type"]
+    assert chat.quick_replies(None)["can_type"] is False
+    assert "finished" in chat.quick_replies(None, finished=True)["placeholder"]
+
+
+def test_the_chat_keeps_the_whole_conversation_and_shows_reports_in_it(tmp_path):
+    report = tmp_path / "phase1_step1_strong-intake.md"
+    report.write_text("# Idea intake\n\n> Run: strong · Model: qwen3:4b · Mode: live\n\nA CV pack.\n\n## Open questions\n\n- Which roles?",
+                      encoding="utf-8")
+    req = Request("strong:phase1_step1", "confirm", "Idea intake: is this right? Approve...", [str(report)])
+    transcript = [Say("Phase 1: Discover", kind="phase", phase=1),
+                  Say("Idea intake: A CV pack.", [str(report)], kind="step", phase=1), req,
+                  ("founder", "Focus on Cairo"), Say("Revising 'Idea intake' with your changes.")]
+    msgs = chat.messages(transcript, None, None)
+    roles = [m["role"] for m in msgs]
+    assert roles == ["assistant", "assistant", "assistant", "user", "assistant", "assistant"]
+    step = msgs[1]["content"]
+    assert "Which roles?" in step and "#### Open questions" in step       # the report itself, in the message
+    assert "Run: strong" not in step and step.count("Idea intake") == 1  # no technical line, no repeated title
+    assert "Does **Idea intake** look right to you?" in msgs[2]["content"]
+    assert msgs[-1]["content"] == chat.WORKING                             # Steve is busy: say so
+    done = chat.messages(transcript, None, Done("stopped", "12 of 100 sign-ups."))
+    assert done[-1]["content"].startswith("**I'm sorry, but I don't think this idea is ready to build")
+    assert "12 of 100 sign-ups." in done[-1]["content"] and chat.WORKING not in str(done)
+
+
+def test_buttons_and_typed_messages_drive_a_whole_run_in_the_chat(app):
+    sid, view = start(app, "strong")
+    for _ in range(200):
+        if view["finished"]:
+            break
+        q = view["quick"]
+        if q["yes"]:
+            view = list(app.respond(sid, "yes"))[-1]
+        else:
+            view = list(app.respond(sid, "send", "Fresh graduates in Cairo"))[-1]
+    assert view["finished"] and app.get(sid).done.outcome == "completed"
+    users = [m for m in view["chat"] if m["role"] == "user"]
+    assert users and all(m["content"] for m in users)
+    assert "All six phases are done" in view["chat"][-1]["content"]

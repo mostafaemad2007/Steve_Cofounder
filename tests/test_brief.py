@@ -18,7 +18,7 @@ def test_a_complete_brief_loads_with_defaults():
     assert b.target_market is None and b.values == []
 
 
-@pytest.mark.parametrize("field", ["run", "idea", "skills", "budget", "hours_per_week"])
+@pytest.mark.parametrize("field", ["run", "idea", "budget", "hours_per_week"])
 def test_each_required_field_is_required(field):
     with pytest.raises(BriefError, match=field):
         brief(**{field: ...})
@@ -35,7 +35,6 @@ def test_each_required_field_is_required(field):
     ({"language": "fr"}, "language"),
     ({"mock_scenario": "medium"}, "mock_scenario"),
     ({"run": "!!!"}, "letter or digit"),
-    ({"skills": ["  "]}, "at least one skill"),
     ({"skills": 42}, "list"),
 ])
 def test_bad_values_fail_with_a_clear_message(changes, message):
@@ -76,3 +75,9 @@ def test_load_reports_missing_and_invalid_files(tmp_path):
     listy.write_text("- a\n- b\n", encoding="utf-8")
     with pytest.raises(BriefError, match="mapping"):
         FounderBrief.load(listy)
+
+
+def test_skills_are_optional_because_steve_works_them_out():
+    data = dict(GOOD); data.pop("skills")
+    b = FounderBrief.from_dict(data)
+    assert b.skills == [] and "Founder skills" not in b.as_text()
