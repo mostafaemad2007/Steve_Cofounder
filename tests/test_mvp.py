@@ -117,3 +117,13 @@ def test_user_docs_list_every_item():
     for item in SPEC["items"]:
         assert item["title"] in docs
     assert "## Quick start" in docs and "## Frequently asked questions" in docs
+
+
+def test_curly_brace_fill_in_fields_are_allowed_but_brackets_are_named(guard):
+    spec = copy.deepcopy(SPEC)
+    spec["items"][0]["content"] = CONTENT + " Name: {FULL NAME}. Role: {JOB TITLE}."
+    assert "no placeholder text" not in failing(run_checks(spec, guard)[0])
+    spec["items"][0]["content"] = CONTENT + " Name: [Your Name]."
+    checks, _ = run_checks(spec, guard)
+    assert "[Your Name]" in checks["no placeholder text"]["detail"]
+    assert "{FIELD NAME}" in checks["no placeholder text"]["detail"]

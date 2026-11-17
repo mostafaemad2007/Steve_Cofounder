@@ -192,7 +192,8 @@ POST_RULES: list[tuple[str, str]] = [
     ("fake_urgency", r"\bonly\s+\d+\s+([\w-]+\s+){0,2}(left|remain|remaining)\b|\bcountdown\b|"
                      r"\b(selling out|almost gone|last chance|hurry)\b"),
     ("fake_testimonial", r"[\"“][^\"”\n]{15,200}[\"”]\s*[-—–]\s*[A-Z][a-z]+( [A-Z]\.?)?[,\s]"),
-    ("fake_rating", r"\b[45](\.\d)?\s*/\s*5\s*(stars?)?\b|★{3,}|\b\d+\s*(happy|satisfied) (customers|users)\b"),
+    ("fake_rating", r"\b[3-5](\.\d)?\s*/\s*5\s*stars?\b|\brated\s+[3-5](\.\d)?\s*(/|out of)\s*5\b|★{3,}|"
+                   r"\b\d+\s*(happy|satisfied) (customers|users)\b"),
 ]
 
 # Claims in agent output are written as "CLAIM: <text> (source: <url>)" or "... (ASSUMPTION ...)".

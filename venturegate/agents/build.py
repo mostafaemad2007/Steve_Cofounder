@@ -20,7 +20,9 @@ class BuildAgent(Agent):
     def mvp(self, feedback=None) -> StepResult:
         task = ("Build the smallest version of the product that is genuinely useful: three to six items of "
                 "real, complete content (templates, checklists, guides or worked examples), each 80 to 250 "
-                "words of Markdown with no placeholders such as [insert ...] or TODO. Add user docs: a quick "
+                "words of Markdown with no placeholders such as [insert ...] or TODO. Write fields the buyer fills in as labels in curly "
+                "braces, such as {FULL NAME}. In example bullets use percentages or counts, never money amounts. "
+                "Add user docs: a quick "
                 "start and an FAQ. No testimonials, ratings, urgency or income promises.")
 
         def build(fb):
@@ -49,4 +51,6 @@ class BuildAgent(Agent):
                    + ("all tests pass." if not failing else f"tests FAILING: {', '.join(failing)}."))
         return StepResult(summary, [page_path, docs_path, report_path],
                           {"tests_passed": not failing, "user_docs_exist": bool(docs.strip()),
-                           "failing": failing, "checks": checks})
+                           "failing": failing, "checks": checks,
+                           "failing_details": [f"{c['name']} ({c['detail']})" if c["detail"] else c["name"]
+                                               for c in checks if not c["passed"]]})

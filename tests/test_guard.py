@@ -113,6 +113,7 @@ def test_bad_output_is_rejected(guard, text, problem):
     "Waitlist sign-ups: 12 of 100 [SIMULATED].",
     "The budget of 300 USD covers 19 months of costs.",
     "Competitors charge between $9 and $29 for similar template packs.",
+    "Demand scores 4/5 against the alternatives.",
 ])
 def test_legitimate_output_is_allowed(guard, text):
     result = guard.post_check(text, agent="discover")

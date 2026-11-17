@@ -347,7 +347,7 @@ class Pipeline:
                                            user_docs_exist=result.data["user_docs_exist"])
             outcome = yield from self.handle_gate(3, decision, approve_go=False)
             if outcome == "repeat":
-                feedback = "Fix these failing MVP tests: " + "; ".join(result.data["failing"])
+                feedback = "Fix these failing MVP tests: " + "; ".join(result.data.get("failing_details") or result.data["failing"])
                 continue
             if isinstance(outcome, Done):
                 return outcome

@@ -177,7 +177,8 @@ def verify_mvp(page: str, spec: dict, docs: str, guard: Guard) -> list[dict]:
     check("the download bundle is embedded", "atob('" in page and "product-pack.md" in page)
     check("no injected scripts (only the download script)", reader.scripts == 1, f"{reader.scripts} scripts")
     placeholder = PLACEHOLDERS.search(bundle_markdown(spec) + "\n" + docs)
-    check("no placeholder text", placeholder is None, placeholder.group(0) if placeholder else "")
+    check("no placeholder text", placeholder is None,
+          f"found '{placeholder.group(0)}'; write fill-in fields as {{FIELD NAME}} in curly braces" if placeholder else "")
     size = len(page.encode("utf-8"))
     check(f"page is under {MAX_PAGE_BYTES // 1000} KB", size < MAX_PAGE_BYTES, f"{size} bytes")
     verdict = guard.post_check(bundle_markdown(spec), agent="build")
