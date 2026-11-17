@@ -1,0 +1,8 @@
+{
+  "_note": "FIXTURE [SIMULATED]. Support tickets invented by the team for Phase 6. No real customer wrote any of these.",
+  "records": [
+    {"ticket_id": "T-1", "topic": "download link did not arrive", "status": "resolved", "simulated": true},
+    {"ticket_id": "T-2", "topic": "how do I edit the template", "status": "resolved", "simulated": true},
+    {"ticket_id": "T-3", "topic": "asking for an Arabic version", "status": "open", "simulated": true}
+  ]
+}

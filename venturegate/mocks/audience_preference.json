@@ -1,0 +1,7 @@
+{
+  "_note": "FIXTURE [SIMULATED]. Share of a hypothetical surveyed audience that would pick this product over the alternatives. Prepared test data, not a real survey.",
+  "records": [
+    {"scenario": "weak", "prefer_pct": 9, "sample_size": 50, "simulated": true},
+    {"scenario": "strong", "prefer_pct": 41, "sample_size": 50, "simulated": true}
+  ]
+}

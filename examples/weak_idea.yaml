@@ -1,0 +1,16 @@
+# Example founder brief: a weak idea.
+# Budget and time are enough to pass Gate 1's founder-fit check, so the idea is judged on demand
+# evidence. Its demand numbers come from the [SIMULATED] "weak" fixture (12 sign-ups against a
+# pre-set target of 100), so the expected result is STOP at Gate 2.
+run: weak
+idea: >
+  A general AI chatbot mobile app that answers any question for anyone, with a nicer design than
+  the existing chatbots.
+skills: [Python, basic web development]
+budget: 400
+currency: USD
+hours_per_week: 8
+target_market: Smartphone users everywhere
+values: [honesty, simplicity]
+language: en
+mock_scenario: weak

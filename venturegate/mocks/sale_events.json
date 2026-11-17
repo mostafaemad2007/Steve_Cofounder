@@ -1,0 +1,10 @@
+{
+  "_note": "FIXTURE [SIMULATED]. Mock store events with fake IDs. No payment provider, no sandbox, no money and no amounts are involved anywhere. evt-1-retry repeats evt-1 on purpose, to prove delivery is idempotent.",
+  "records": [
+    {"event_id": "evt-1", "type": "order_paid", "order_id": "ord-1", "buyer_id": "buyer-A", "product_id": "prod-1", "idempotency_key": "idem-ord-1", "simulated": true},
+    {"event_id": "evt-1-retry", "type": "order_paid", "order_id": "ord-1", "buyer_id": "buyer-A", "product_id": "prod-1", "idempotency_key": "idem-ord-1", "simulated": true},
+    {"event_id": "evt-2", "type": "order_paid", "order_id": "ord-2", "buyer_id": "buyer-B", "product_id": "prod-1", "idempotency_key": "idem-ord-2", "simulated": true},
+    {"event_id": "evt-3", "type": "order_paid", "order_id": "ord-3", "buyer_id": "buyer-C", "product_id": "prod-1", "idempotency_key": "idem-ord-3", "simulated": true},
+    {"event_id": "evt-4", "type": "order_refunded", "order_id": "ord-2", "buyer_id": "buyer-B", "product_id": "prod-1", "idempotency_key": "idem-refund-2", "simulated": true}
+  ]
+}

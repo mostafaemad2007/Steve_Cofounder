@@ -1,0 +1,42 @@
+# Pre-registered gate thresholds.
+# Fixed BEFORE any run and never changed during one: the code fingerprints this file when a run
+# starts and refuses to continue if it changes. This is what makes a STOP trustworthy.
+G1_discover:
+  min_alternatives: 3
+  min_sourced_claims: 5
+  require_founder_fit: true
+  min_runway_months: 6        # budget must cover this many months of costs (planning ASSUMPTION)
+  min_hours_per_week: 5
+  on_fail: [pivot, stop]
+
+G2_validate:
+  signup_target: 100
+  window_days: 14
+  stop_below_ratio: 0.5       # below half the target the recommendation is stop, not pivot
+  require_founder_approval: true
+  on_fail: [stop, pivot]
+
+G3_build:
+  require_all_tests_pass: true
+  require_user_docs: true
+  max_repeats: 3
+  on_fail: [repeat]
+
+G4_commercial:
+  required_drafts: [terms, privacy, refund]
+  draft_label: "DRAFT - not legal advice"
+  require_price_approval: true
+  max_repeats: 3
+  on_fail: [repeat]
+
+G5_launch:
+  require_mock_flow_pass: true
+  max_repeats: 3
+  on_fail: [repeat]
+
+G6_operate:
+  forbid_income_figures: true
+  persevere_min_ratio: 1.0
+  pivot_min_ratio: 0.5
+  min_runway_months: 6
+  outcomes: [go, pivot, stop]

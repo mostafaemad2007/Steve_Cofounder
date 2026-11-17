@@ -1,0 +1,7 @@
+{
+  "_note": "FIXTURE [SIMULATED]. Prepared waitlist scenarios written by the team as test data. These are NOT real sign-ups, not a forecast, and not a prediction of what any idea would achieve.",
+  "records": [
+    {"scenario": "weak", "count": 12, "days": 14, "channel": "landing page waitlist", "simulated": true},
+    {"scenario": "strong", "count": 134, "days": 14, "channel": "landing page waitlist", "simulated": true}
+  ]
+}

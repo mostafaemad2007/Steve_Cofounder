@@ -1,0 +1,16 @@
+{
+  "_note": "FIXTURE [SIMULATED]. Mock payment-provider records used only to demonstrate reconciliation BY ID AND STATUS. They deliberately carry no amounts: this system reports no money figures anywhere, so amount-level reconciliation is STUBBED.",
+  "payments": [
+    {"payment_id": "pay-1", "order_id": "ord-1", "status": "succeeded", "simulated": true},
+    {"payment_id": "pay-2", "order_id": "ord-2", "status": "refunded", "simulated": true},
+    {"payment_id": "pay-3", "order_id": "ord-3", "status": "succeeded", "simulated": true}
+  ],
+  "fees": [
+    {"fee_id": "fee-1", "payment_id": "pay-1", "simulated": true},
+    {"fee_id": "fee-2", "payment_id": "pay-2", "simulated": true},
+    {"fee_id": "fee-3", "payment_id": "pay-3", "simulated": true}
+  ],
+  "payouts": [
+    {"payout_id": "payout-1", "payment_ids": ["pay-1", "pay-3"], "status": "paid", "simulated": true}
+  ]
+}

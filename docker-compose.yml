@@ -1,0 +1,40 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  model-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["/bin/sh", "-c", "ollama pull ${MODEL:-qwen3:4b}"]
+    restart: "no"
+
+  app:
+    build: .
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - MODEL=${MODEL:-qwen3:4b}
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./outputs:/app/outputs
+      - ./sources:/app/sources
+      - ./replay:/app/replay
+      # runs started from the page must leave their log on the host, not inside the container
+      - ./decision_log.json:/app/decision_log.json
+
+volumes:
+  ollama:

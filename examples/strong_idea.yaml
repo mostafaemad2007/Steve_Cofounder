@@ -1,0 +1,15 @@
+# Example founder brief: a focused digital product.
+# Its demand numbers come from the [SIMULATED] "strong" fixture (134 sign-ups against a pre-set
+# target of 100), so the run can complete all six phases when the evidence in sources/ holds up.
+run: strong
+idea: >
+  A bilingual Arabic and English CV and portfolio template pack, with worked examples, for
+  Egyptian fresh graduates applying to junior software and data jobs.
+skills: [technical recruiting experience, writing, Google Docs, basic web development]
+budget: 300
+currency: USD
+hours_per_week: 10
+target_market: Fresh computer science and engineering graduates in Egypt
+values: [honesty, accessibility, no dark patterns]
+language: en
+mock_scenario: strong

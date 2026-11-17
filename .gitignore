@@ -221,3 +221,19 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# VentureGate
+.env
+.state/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# model weights and caches never belong in git
+*.gguf
+*.bin
+*.safetensors
+models/
+ollama/
