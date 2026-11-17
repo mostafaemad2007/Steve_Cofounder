@@ -8,7 +8,7 @@ import pytest
 
 from fake_model import FakeModel
 from venturegate import views
-from venturegate.app import ConsoleApp, Session
+from venturegate.app import LIVE, REPLAY, STRONG_SCENARIO, ConsoleApp, Session
 from venturegate.brief import FounderBrief
 from venturegate.events import Done, Reply, Request, Say
 from venturegate.llm import LLM
@@ -44,7 +44,7 @@ def form(app, name):
                                "language", "scenario")}
 
 
-def start(app, name, mode="Live: the local model"):
+def start(app, name, mode=LIVE):
     sid, view = None, None
     for sid, view in app.start(form(app, name), mode):
         pass
@@ -103,7 +103,7 @@ def test_a_question_needs_an_answer(app):
     f = form(app, "strong")
     f["market"] = ""
     sid = None
-    for sid, _ in app.start(f, "Live: the local model"):
+    for sid, _ in app.start(f, LIVE):
         pass
     while app.get(sid).pending.kind != "question":
         list(app.respond(sid, "primary"))
@@ -116,7 +116,7 @@ def test_a_question_needs_an_answer(app):
 def test_a_bad_brief_stays_on_the_start_screen(app):
     f = form(app, "strong")
     f["idea"] = "app"
-    results = list(app.start(f, "Live: the local model"))
+    results = list(app.start(f, LIVE))
     assert results == [("", {"alert": "The brief could not be used: describe the idea in at least one full sentence",
                              "screen": "start"})]
 
@@ -129,7 +129,7 @@ def test_an_unknown_or_finished_session_is_handled(app):
 
 
 def test_replay_with_nothing_recorded_ends_with_a_clear_error(app):
-    sid, view = start(app, "strong", "Replay a recorded run")
+    sid, view = start(app, "strong", REPLAY)
     assert app.get(sid).done.outcome == "error"
     assert "The run could not continue" in view["timeline"] and "docker compose up" in view["timeline"]
 
@@ -250,7 +250,7 @@ def test_evidence_counts_distinct_sourced_claims():
     html = views.evidence_html(records, 5, 3)
     blocks = html.split('class="vg-blocks"', 1)[1].split("</div>", 1)[0]
     assert blocks.count("<span") == 5 and blocks.count('class="fill"') == 1
-    assert "canva.com" in html and "<b>1</b>sourced" in html and "<b>1</b>assumptions" in html
+    assert "canva.com" in html and "<b>1</b>with a source" in html and "<b>1</b>assumptions" in html
 
 
 def test_steve_appears_where_the_founder_decides():
@@ -273,8 +273,24 @@ def test_file_links_point_at_the_served_outputs():
 
 def test_start_panel_reflects_model_and_sources(app):
     html = views.start_side_html(model="qwen3:4b", ready=False, recorded=7, sources_loaded=2, thresholds=app.thresholds)
-    assert "not reachable yet" in html and "7 recorded step(s)" in html and "2 evidence page(s)" in html
-    assert "100 in 14 days" in html and "50% of target" in html
+    assert "still starting up" in html and "replay a recorded run" in html and "2 evidence page(s)" in html
+    assert "Fewer than 50% of the 100 waitlist sign-ups aimed for in 14 days" in html
+    web = views.start_side_html(model="qwen3:4b", ready=True, recorded=0, sources_loaded=0, thresholds=app.thresholds,
+                                web_search=True)
+    assert "Steve researches the web" in web and "Steve is ready" in web and "gates.yaml" not in web
+
+
+def test_file_chips_use_readable_names_and_keep_the_file_name_in_the_tooltip():
+    html = views.files_html(["/o/phase2_gate_weak-demand-stop.md", "/o/phase3_step1_strong-mvp.html",
+                             "/o/payment_test_log.md"])
+    assert ">Gate report: demand stop</a>" in html and ">MVP (preview)</a>" in html
+    assert ">Sale and delivery test</a>" in html and 'title="phase2_gate_weak-demand-stop.md"' in html
+
+
+def test_header_is_plain_but_still_says_replay():
+    live = views.header_html(model="qwen3:4b", mode="live", ready=True, run="weak", idea="An idea for graduates")
+    assert "Steve is ready" in live and "Working on:" in live and 'title="Local model: qwen3:4b"' in live
+    assert "[REPLAY MODE]" in views.header_html(model="qwen3:4b", mode="replay", ready=False, run="weak")
 
 
 def test_examples_load_into_the_form(app):
@@ -282,7 +298,7 @@ def test_examples_load_into_the_form(app):
     assert weak["run"] == "weak" and weak["scenario"] == "weak" and weak["language"] == "English"
     brief = app.brief_from_form(**form(app, "weak"))
     assert brief.mock_scenario == "weak" and brief.run == "weak"
-    assert app.brief_from_form(**{**form(app, "weak"), "scenario": "Strong fixture: 134 of 100 sign-ups",
+    assert app.brief_from_form(**{**form(app, "weak"), "scenario": STRONG_SCENARIO,
                                   "language": "Arabic", "run": ""}).run == "my-idea"
 
 

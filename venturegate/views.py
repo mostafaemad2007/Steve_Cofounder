@@ -15,10 +15,30 @@ PHASES = [(1, "Discover", "Find opportunities"), (2, "Validate", "Design the bus
           (5, "Launch", "Open the store, deliver"), (6, "Operate and learn", "Persevere, pivot or stop")]
 PHASE_NAMES = {n: (name, core) for n, name, core in PHASES}
 OUTCOME_LABEL = {"go": "GO", "repeat": "REPEAT", "pivot": "PIVOT", "stop": "STOP"}
+GATE_TITLES = {"evidence": "Evidence check", "demand": "Demand check", "tests": "Product check",
+               "commercial": "Price and policies check", "sale-to-cash": "Sale and delivery check",
+               "memo": "Keep going or stop"}
+METRIC_LABELS = {"window (days)": "Test length (days)", "share of target": "Share of the target",
+                 "stop below": "Stop below", "attempt": "Attempt", "max_repeats": "Attempts allowed",
+                 "alternatives compared": "Alternatives compared", "minimum": "Needed",
+                 "claims with real sources": "Facts with real sources", "minimum sourced": "Needed",
+                 "months the budget covers": "Months your budget covers", "minimum months": "Months needed",
+                 "hours per week": "Your hours per week", "minimum hours": "Hours needed",
+                 "demand vs target [SIMULATED]": "Demand vs target [SIMULATED]"}
 
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com">'
          '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:'
          'wght@500;600&family=Pixelify+Sans:wght@500;600;700&display=swap" rel="stylesheet">')
+# The design is light. Windows dark mode makes Gradio add a "dark" class that turns its text near-white,
+# which is unreadable on the cream cards, so the class is removed as soon as it appears.
+LIGHT_ONLY = """<meta name="color-scheme" content="light"><script>
+(function () {
+  function light() { if (document.body && document.body.classList.contains("dark")) document.body.classList.remove("dark"); }
+  new MutationObserver(light).observe(document.documentElement, {attributes: true, subtree: true, attributeFilter: ["class"]});
+  document.addEventListener("DOMContentLoaded", light);
+  light();   // Gradio may add this script after it has already switched to dark
+})();
+</script>"""
 # Keeps the conversation scrolled to the newest message as Steve adds steps.
 AUTOSCROLL = """<script>
 (function () {
@@ -31,7 +51,7 @@ AUTOSCROLL = """<script>
   }).observe(document.documentElement, {childList: true, subtree: true});
 })();
 </script>"""
-HEAD = FONTS + AUTOSCROLL
+HEAD = FONTS + LIGHT_ONLY + AUTOSCROLL
 
 CSS = """
 :root{--vg-ink:#1E1A15;--vg-muted:#5A5248;--vg-line:#CDC4B6;--vg-soft-line:#E2DBCF;--vg-ground:#EFEBE3;
@@ -43,6 +63,12 @@ body,.gradio-container{background:var(--vg-ground)!important;color:var(--vg-ink)
 .gradio-container main.app,.gradio-container .main{padding:0!important;max-width:none!important}
 .gradio-container .contain > .column{gap:0!important}
 footer{display:none!important}
+:root{color-scheme:light}
+.vg{color:var(--vg-ink)}
+.gradio-container input:not([type=radio]):not([type=checkbox]),.gradio-container textarea,.gradio-container select{background:#FFFFFF!important;color:var(--vg-ink)!important}
+.gradio-container input[type=radio]:checked,.gradio-container input[type=checkbox]:checked{background-color:var(--vg-grass)!important;border-color:var(--vg-grass-dark)!important}
+.gradio-container input::placeholder,.gradio-container textarea::placeholder{color:#6B645B!important;opacity:1}
+.gradio-container label span,.gradio-container .block-title,.gradio-container .block-label{color:var(--vg-soil)!important}
 .vg h1,.vg h2,.vg h3{font-family:"Pixelify Sans",Inter,sans-serif;font-weight:600;margin:0;letter-spacing:.01em;color:var(--vg-ink)}
 .vg p{margin:0}
 .vg a{color:var(--vg-teal)} .vg a:hover{color:var(--vg-teal-dark)}
@@ -175,9 +201,32 @@ def file_url(path: str) -> str:
     return "/gradio_api/file=" + html.escape(str(Path(path).resolve()), quote=True)
 
 
+SPECIAL_FILES = {"payment_test_log.md": "Sale and delivery test", "redteam_report.md": "Safety test report",
+                 "cost_report.json": "Cost report", "evidence_ledger.json": "Every fact and its source",
+                 "decision_log.json": "Every action Steve took"}
+
+
+NICE_NAMES = {"improvements-ip-check": "improvements and IP check", "costs-runway": "costs and runway",
+              "lean-canvas": "Lean Canvas", "mvp-tests": "MVP test results", "user-docs": "user guide",
+              "memo": "keep going or stop memo"}
+
+
+def file_label(name: str) -> str:
+    """'phase2_gate_weak-demand-stop.md' -> 'Gate report: demand stop'. The file name stays in the tooltip."""
+    if name in SPECIAL_FILES:
+        return SPECIAL_FILES[name]
+    m = re.match(r"^phase\d+_(step\d+|gate)_[a-z0-9]+-(.+)\.(\w+)$", name)
+    if not m:
+        return name
+    words = NICE_NAMES.get(m.group(2), m.group(2).replace("-", " "))
+    words = re.sub(r"\b(mvp|ip)\b", lambda w: w.group(1).upper(), words)
+    label = ("Gate report: " + words) if m.group(1) == "gate" else words[:1].upper() + words[1:]
+    return label + (" (preview)" if m.group(3) == "html" else "")
+
+
 def files_html(paths) -> str:
-    chips = [f'<a class="vg-file" href="{file_url(p)}" target="_blank" rel="noopener">{e(Path(p).name)}</a>'
-             for p in paths if p]
+    chips = [f'<a class="vg-file" href="{file_url(p)}" target="_blank" rel="noopener" title="{e(Path(p).name)}">'
+             f'{e(file_label(Path(p).name))}</a>' for p in paths if p]
     return f'<div class="vg-files">{"".join(chips)}</div>' if chips else ""
 
 
@@ -185,27 +234,27 @@ def files_html(paths) -> str:
 def header_html(*, model: str, mode: str, ready: bool, run: str | None = None, idea: str | None = None,
                 cost: float = 0.0, finished: bool = False) -> str:
     if mode == "replay":
-        status, dot = f"{e(model)} · [REPLAY MODE]", "#C4B5FD"
+        status, dot = "[REPLAY MODE] replaying a recorded run", "#C4B5FD"
     elif ready:
-        status, dot = f"{e(model)} · live · on this laptop", "#6BAA40"
+        status, dot = "Steve is ready · private, on this laptop", "#6BAA40"
     else:
-        status, dot = f"{e(model)} · not reachable yet", "#E0B03A"
-    run_text = (f'Run <strong>{e(run)}</strong>{" · " + e(_short(idea, 70)) if idea else ""}' if run
-                else "Ready for a new idea")
-    cost_pill = (f'<span class="vg-pill" style="font-family:\'JetBrains Mono\',monospace">${cost:.2f}'
-                 f'{" · run ended" if finished else " so far"}</span>' if run else "")
+        status, dot = "Steve is starting up (downloading his model)", "#E0B03A"
+    run_text = (f'Working on: <strong>{e(_short(idea, 80))}</strong>' if run and idea else
+                (f'Working on: <strong>{e(run)}</strong>' if run else "Ready for a new idea"))
+    cost_pill = (f'<span class="vg-pill">{"Total cost" if finished else "Cost so far"}: ${cost:.2f}</span>'
+                 if run else "")
     return (f'<div class="vg"><div class="vg-header"><div class="vg-brand">{emblem(30)}<div><b>VentureGate</b>'
             f'<small>with Steve, your honest AI cofounder</small></div></div><div class="vg-run">{run_text}</div>'
-            f'<div style="flex:1 1 auto"></div><span class="vg-pill"><span class="vg-dot" style="background:{dot}"></span>'
-            f'{status}</span>{cost_pill}</div><div class="vg-grass"></div></div>')
+            f'<div style="flex:1 1 auto"></div><span class="vg-pill" title="Local model: {e(model)}"><span class="vg-dot" '
+            f'style="background:{dot}"></span>{status}</span>{cost_pill}</div><div class="vg-grass"></div></div>')
 
 
 def legend_html() -> str:
     return ('<section class="vg vg-card vg-side" style="margin-top:12px"><div class="vg-label">What the labels mean</div>'
             '<div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#4A433A">'
-            '<span><span class="vg-tag sim">[SIMULATED]</span> prepared fixture, not real data</span>'
-            '<span><span class="vg-tag sim">MOCKED</span> nothing leaves this laptop</span>'
-            '<span><span class="vg-tag src">SOURCED</span> links to a saved page</span>'
+            '<span><span class="vg-tag sim">[SIMULATED]</span> sample numbers, not real data</span>'
+            '<span><span class="vg-tag sim">MOCKED</span> practice only: nothing leaves this laptop</span>'
+            '<span><span class="vg-tag src">SOURCED</span> from a web page Steve read</span>'
             '<span><span class="vg-tag asm">ASSUMPTION</span> no source behind it</span></div></section>')
 
 
@@ -245,7 +294,7 @@ def rail_html(states: list[dict]) -> str:
         mark = "✓" if st["state"] == "done" else ("✕" if st["state"] == "stop" else str(number))
         items.append(f'<li class="{st["state"]}"><span class="num" aria-hidden="true">{mark}</span>'
                      f'<span><strong>{e(name)}</strong><small>{e(st["note"])}</small></span></li>')
-    return (f'<nav class="vg vg-card vg-side vg-rail" aria-label="Phases"><div class="vg-label">Six phases, six gates</div>'
+    return (f'<nav class="vg vg-card vg-side vg-rail" aria-label="Phases"><div class="vg-label">Your six steps with Steve</div>'
             f'<ol>{"".join(items)}</ol></nav>')
 
 
@@ -300,7 +349,7 @@ def step_html(ev: Say, current: bool) -> str:
 def gate_html(ev: Say) -> str:
     outcome = ev.outcome or "go"
     data = ev.data or {}
-    name = data.get("name", "")
+    name = GATE_TITLES.get(data.get("name", ""), data.get("name", ""))
     title = f"Gate {ev.phase}{' · ' + e(name) if name else ''}"
     reasons = data.get("reasons") or [ev.text]
     if outcome != "stop":
@@ -313,7 +362,7 @@ def gate_html(ev: Say) -> str:
     if isinstance(count, (int, float)) and isinstance(target, (int, float)) and target:
         meter = meter_html(count, target, _percent(metrics.get("stop below"), 50))
     shown = {"sign-ups [SIMULATED]", "pre-set target", "stop below"} if meter else set()
-    stats = "".join(f'<div class="vg-stat"><span class="vg-label">{e(k)}</span><b>{e(v)}</b></div>'
+    stats = "".join(f'<div class="vg-stat"><span class="vg-label">{e(METRIC_LABELS.get(k, k))}</span><b>{e(v)}</b></div>'
                     for k, v in list(metrics.items())[:8] if not isinstance(v, bool) and k not in shown)
     change = "".join(f"<li>{e(item)}</li>" for item in data.get("what_would_change", []))
     return (f'<article class="vg-card vg-gate stop"><div class="vg-step-head"><span class="vg-stamp">STOP</span>'
@@ -325,8 +374,8 @@ def gate_html(ev: Say) -> str:
             + (f'<div><h3 style="font-size:15px;margin-bottom:4px">What would change this decision</h3>'
                f'<ul style="margin:0;padding-left:18px">{change}</ul></div>' if change else "")
             + f'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;border-top:2px solid #E2DBCF;'
-            f'padding-top:12px">{files_html(ev.files)}<span style="font-size:12px;color:#5A5248">The threshold was '
-            f'fixed in gates.yaml before the run. It cannot be lowered.</span></div></article>')
+            f'padding-top:12px">{files_html(ev.files)}<span style="font-size:12px;color:#5A5248">This target was set '
+            f'before the test started and cannot be lowered.</span></div></article>')
 
 
 def meter_html(count: float, target: float, stop_percent: float, cells: int = 20) -> str:
@@ -360,8 +409,8 @@ def done_html(done: Done) -> str:
     else:
         summary = done.summary
     return (f'<section class="vg-card vg-done {cls}"><h2 style="font-size:18px">{e(titles.get(done.outcome, done.outcome))}</h2>'
-            f'<p>{_tagged(summary)}</p><p style="font-size:13px;color:#5A5248">Every action is in decision_log.json, '
-            f'every claim in evidence_ledger.json, the cost in cost_report.json.</p></section>')
+            f'<p>{_tagged(summary)}</p><p style="font-size:13px;color:#5A5248">Steve kept a full record: every step, '
+            f'every fact with its source, and the cost. See the reports on the right.</p></section>')
 
 
 def timeline_html(events: list, pending: Request | None, done: Done | None) -> str:
@@ -404,7 +453,7 @@ def decision_controls(request: Request | None) -> dict:
                 "text_label": "Your answer", "text_visible": True}
     if request.kind == "confirm":
         return {"visible": True, "primary": "Approve and continue", "secondary": "Request changes",
-                "quiet": "Stop the run", "text_label": "What should change? (needed for “Request changes”)",
+                "quiet": "Stop the run", "text_label": "What should change? (only needed if you request changes)",
                 "text_visible": True}
     if request.kind == "gate" and pivot:
         return {"visible": True, "primary": "Pivot with this idea", "secondary": None, "quiet": "Stop here",
@@ -419,9 +468,12 @@ def decision_controls(request: Request | None) -> dict:
 def decision_html(request: Request | None) -> str:
     if request is None:
         return ""
+    prompt = request.prompt
+    if request.kind == "confirm" and ": is this right?" in prompt:
+        prompt = prompt.split(": is this right?")[0] + ": does this look right to you?"
     return (f'<div class="vg"><div class="vg-decision-head">{emblem(20)}<h2>Steve is waiting for your decision</h2>'
             f'{KIND_TAGS.get(request.kind, "")}<span style="font-size:12px;color:#5A5248">Nothing continues until you '
-            f'choose</span></div><p style="margin-top:6px">{_tagged(request.prompt)}</p>{files_html(request.files)}</div>')
+            f'choose</span></div><p style="margin-top:6px">{_tagged(prompt)}</p>{files_html(request.files)}</div>')
 
 
 # == the evidence panel =========================================================
@@ -440,20 +492,20 @@ def evidence_html(records: list[dict], min_sourced: int, sources_loaded: int) ->
             tag = f'<span><span class="vg-tag asm">ASSUMPTION · {e(r.get("confidence", "low"))}</span></span>'
         claims.append(f'<div class="vg-claim"><span>{e(_short(r["claim"], 140))}</span>{tag}</div>')
     claims_html = "".join(claims) or '<p style="font-size:13px;color:#5A5248">No claims yet.</p>'
-    return (f'<section class="vg vg-card vg-side"><div class="vg-label">Gate 1 · evidence</div>'
+    return (f'<section class="vg vg-card vg-side"><div class="vg-label">Evidence</div>'
             f'<div style="display:flex;align-items:baseline;gap:6px"><span style="font:700 30px Pixelify Sans,sans-serif">'
-            f'{sourced}</span><span style="color:#5A5248">of {min_sourced} sourced claims needed</span></div>'
+            f'{sourced}</span><span style="color:#5A5248">facts backed by a source (Steve needs {min_sourced})</span></div>'
             f'<div class="vg-blocks" style="grid-template-columns:repeat({cells},minmax(0,1fr))" role="img" '
             f'aria-label="{sourced} of {min_sourced} sourced claims">{blocks}</div>'
             f'<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">'
-            f'<div class="vg-stat"><b>{sourced}</b>sourced</div><div class="vg-stat"><b>{assumptions}</b>assumptions</div></div>'
-            f'<p style="font-size:12px;color:#5A5248">{sources_loaded} page(s) read so far</p></section>'
-            f'<section class="vg vg-card vg-side" style="margin-top:12px"><div class="vg-label">Latest claims</div>{claims_html}</section>')
+            f'<div class="vg-stat"><b>{sourced}</b>with a source</div><div class="vg-stat"><b>{assumptions}</b>assumptions</div></div>'
+            f'<p style="font-size:12px;color:#5A5248">Steve has read {sources_loaded} web page(s)</p></section>'
+            f'<section class="vg vg-card vg-side" style="margin-top:12px"><div class="vg-label">Latest facts</div>{claims_html}</section>')
 
 
 def records_html(paths: list[str]) -> str:
-    return (f'<section class="vg vg-card vg-side" style="margin-top:12px"><div class="vg-label">Files from this run</div>'
-            f'{files_html(paths) or "<p style=font-size:13px;color:#5A5248>Files appear here as each step finishes.</p>"}'
+    return (f'<section class="vg vg-card vg-side" style="margin-top:12px"><div class="vg-label">Reports from this run</div>'
+            f'{files_html(paths) or "<p style=font-size:13px;color:#5A5248>Reports appear here as Steve finishes each step.</p>"}'
             f'</section>')
 
 
@@ -466,13 +518,12 @@ def start_side_html(*, model: str, ready: bool, recorded: int, sources_loaded: i
                                  '<path d="M12 8v5"></path><path d="M12 16h.01"></path><circle cx="12" cy="12" r="9"></circle></svg>')
         return f'<div style="display:flex;gap:12px;align-items:flex-start">{icon}<div style="font-size:14px"><strong>{title}</strong><br><span style="color:#5A5248">{text}</span></div></div>'
     g1, g2 = thresholds["G1_discover"], thresholds["G2_validate"]
-    model_row = row(ready, "Local model ready" if ready else "Local model not reachable yet",
-                    f"{e(model)} runs on this laptop. Cost: $0.00." if ready else
-                    f"It may still be downloading. {recorded} recorded step(s) are available to replay.")
+    model_row = row(ready, "Steve is ready" if ready else "Steve is still starting up",
+                    "He runs privately on this laptop, for free." if ready else
+                    "His model may still be downloading. You can replay a recorded run meanwhile.")
     if web_search:
-        source_row = row(True, "Steve searches the web",
-                         f"Live search at each research step, no API key. Gate 1 needs {g1['min_sourced_claims']} "
-                         f"claims backed by pages he actually read. {sources_loaded} saved page(s) are used too.")
+        source_row = row(True, "Steve researches the web",
+                         "He only cites pages he actually read, and says so when he has no source.")
     else:
         source_row = row(sources_loaded >= g1["min_sourced_claims"], f"{sources_loaded} evidence page(s) saved",
                          f"Gate 1 needs {g1['min_sourced_claims']} claims backed by them. Add pages to <code>sources/</code>.")
@@ -482,13 +533,13 @@ def start_side_html(*, model: str, ready: bool, recorded: int, sources_loaded: i
             '<li>Promise or estimate income</li><li>Write reviews, testimonials or sign-ups</li>'
             '<li>Touch payments, even in a sandbox</li><li>Publish or send without your approval</li>'
             '<li>Change his own gate thresholds</li><li>Work on physical, financial, crypto, health or legal products</li></ul></section>'
-            f'<section class="vg vg-card vg-side" style="margin-top:12px"><div class="vg-label">Gate thresholds · gates.yaml</div>'
-            f'<p style="font-size:13px;color:#5A5248">Fixed in <code>gates.yaml</code> before the run.</p>'
-            f'<dl style="margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;font-size:13px">'
-            f'<dt style="color:#5A5248">Sourced claims</dt><dd style="margin:0;font-weight:600">{g1["min_sourced_claims"]} or more</dd>'
-            f'<dt style="color:#5A5248">Sign-up target</dt><dd style="margin:0;font-weight:600">{g2["signup_target"]} in {g2["window_days"]} days</dd>'
-            f'<dt style="color:#5A5248">Stop below</dt><dd style="margin:0;font-weight:600">{g2["stop_below_ratio"]:.0%} of target</dd>'
-            f'<dt style="color:#5A5248">Budget covers</dt><dd style="margin:0;font-weight:600">{g1["min_runway_months"]:g} months of costs</dd></dl></section>')
+            f'<section class="vg vg-card vg-side" style="margin-top:12px"><div class="vg-label">When Steve says stop</div>'
+            f'<ul style="margin:0;padding-left:16px;font-size:13px;display:flex;flex-direction:column;gap:4px">'
+            f'<li>Fewer than {g1["min_sourced_claims"]} facts backed by real sources</li>'
+            f'<li>Fewer than {g2["stop_below_ratio"]:.0%} of the {g2["signup_target"]} waitlist sign-ups aimed for in '
+            f'{g2["window_days"]} days</li>'
+            f'<li>Your budget cannot cover {g1["min_runway_months"]:g} months of costs</li></ul>'
+            f'<p style="font-size:12px;color:#5A5248">These limits are set before the run and cannot be changed during it.</p></section>')
 
 
 def alert_html(text: str | None) -> str:

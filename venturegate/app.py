@@ -24,7 +24,10 @@ from .orchestrator import Pipeline
 from .sources import SourceLibrary
 
 EXAMPLES = config.ROOT / "examples"
-MODES = {"Live: the local model": "live", "Replay a recorded run": "replay"}
+MODES = {"Live: Steve thinks it through now": "live", "Replay a recorded run (instant)": "replay"}
+LIVE, REPLAY = list(MODES)
+WEAK_SCENARIO = "Weak: 12 of 100 sign-ups"
+STRONG_SCENARIO = "Strong: 134 of 100 sign-ups"
 MAX_SESSIONS = 20
 
 
@@ -111,7 +114,7 @@ class ConsoleApp:
 
     def default_mode(self) -> str:
         st = self.model_status()
-        return "Replay a recorded run" if not st["ready"] and st["recorded"] else "Live: the local model"
+        return REPLAY if not st["ready"] and st["recorded"] else LIVE
 
     @staticmethod
     def load_example(name: str) -> dict:
@@ -236,17 +239,17 @@ def build_ui(app: ConsoleApp | None = None):
                                       placeholder="What would you build, and for whom?")
                     with gr.Row():
                         skills = gr.Textbox(label="Your skills", placeholder="writing, web development")
-                        market = gr.Textbox(label="Target market (optional, Steve will ask)")
+                        market = gr.Textbox(label="Who it is for (optional, Steve will ask)")
                         values = gr.Textbox(label="Your values (optional)", placeholder="honesty, accessibility")
                     with gr.Row():
                         budget = gr.Number(label="Total budget", value=300, minimum=0)
                         currency = gr.Dropdown(["USD", "EGP", "EUR"], value="USD", label="Currency")
                         hours = gr.Number(label="Hours per week", value=10, minimum=0, maximum=168)
                         language = gr.Dropdown(["English", "Arabic"], value="English", label="Language")
-                    scenario = gr.Radio(["Weak fixture: 12 of 100 sign-ups", "Strong fixture: 134 of 100 sign-ups"],
-                                        value="Strong fixture: 134 of 100 sign-ups",
-                                        label="Demand test data [SIMULATED]: no real waitlist yet, so Gate 2 uses a prepared fixture")
-                    mode = gr.Radio(list(MODES), value=app.default_mode(), label="Model")
+                    scenario = gr.Radio([WEAK_SCENARIO, STRONG_SCENARIO], value=STRONG_SCENARIO,
+                                        label="Waitlist numbers to test with [SIMULATED]: sample numbers, since there is "
+                                              "no real waitlist yet")
+                    mode = gr.Radio(list(MODES), value=app.default_mode(), label="How Steve runs")
                     start_btn = gr.Button("Start with Steve", elem_classes="vg-btn-primary")
                 with gr.Column(elem_id="vg-run", visible=False) as run_view:
                     timeline = HTML("", elem_id="vg-timeline")
@@ -286,7 +289,7 @@ def build_ui(app: ConsoleApp | None = None):
             ex = app.load_example(name)
             return (ex["run"], ex["idea"], ex["skills"], ex["market"], ex["budget"], ex["currency"], ex["hours"],
                     ex["values"], ex["language"],
-                    "Weak fixture: 12 of 100 sign-ups" if ex["scenario"] == "weak" else "Strong fixture: 134 of 100 sign-ups")
+                    WEAK_SCENARIO if ex["scenario"] == "weak" else STRONG_SCENARIO)
 
         example_outputs = [run_label] + form_fields
         weak_btn.click(lambda: on_example("weak"), None, example_outputs)

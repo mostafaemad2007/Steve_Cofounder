@@ -107,9 +107,16 @@ class DecisionLogger:
             entries = self.read()
             entries.append(entry)
             self.path.parent.mkdir(parents=True, exist_ok=True)
+            content = json.dumps(entries, indent=1, ensure_ascii=False) + "\n"
             tmp = self.path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(entries, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
-            tmp.replace(self.path)
+            tmp.write_text(content, encoding="utf-8")
+            try:
+                tmp.replace(self.path)
+            except OSError:
+                # Docker mounts decision_log.json as a single file (bind-mounted), and a mounted file can
+                # be rewritten but not replaced. Write it in place instead.
+                self.path.write_text(content, encoding="utf-8")
+                tmp.unlink(missing_ok=True)
         return entry
 
     def entries_for(self, run: str) -> list:

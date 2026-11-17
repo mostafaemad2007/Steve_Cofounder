@@ -136,3 +136,18 @@ def test_resetting_one_run_keeps_the_other(ledger):
     strong.add_claim("strong claim", agent="discover", source_url="https://x.test/2")
     strong.reset_run("weak")
     assert [r["run"] for r in strong.read()] == ["strong"]
+
+
+def test_logging_works_when_the_log_file_cannot_be_replaced(tmp_path, monkeypatch):
+    """Inside Docker, decision_log.json is a bind-mounted file: renaming over it fails with EBUSY."""
+    import errno
+    from pathlib import Path
+
+    def busy(self, target):
+        raise OSError(errno.EBUSY, "Device or resource busy")
+    monkeypatch.setattr(Path, "replace", busy)
+    log = DecisionLogger(tmp_path / "decision_log.json")
+    log.log("guard", "refuse_request")
+    log.log("gate", "G2_decision", outcome="stop")
+    assert [e["action"] for e in log.read()] == ["refuse_request", "G2_decision"]
+    assert not (tmp_path / "decision_log.tmp").exists()

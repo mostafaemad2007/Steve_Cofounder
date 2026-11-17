@@ -125,13 +125,12 @@ class Pipeline:
 
     def _run(self) -> Events:
         b = self.brief
-        mode = f"{REPLAY_TAG}, replaying a recorded real run" if self.llm.mode == "replay" else \
-            f"live, local model {self.llm.model}"
+        mode = f" ({REPLAY_TAG}, replaying a recorded real run)" if self.llm.mode == "replay" else ""
         live_web = getattr(self.ctx.sources, "live", False)
         evidence = ("Steve searches the web for evidence at each research step" if live_web
-                    else f"{len(self.ctx.sources)} saved evidence page(s) loaded")
-        yield Say(f"Starting run '{b.run}' ({mode}). {evidence}. "
-                  f"Demand numbers in this run come from the [SIMULATED] '{b.mock_scenario}' fixture.")
+                    else f"Steve uses the {len(self.ctx.sources)} evidence page(s) saved in sources/")
+        yield Say(f"Steve is starting{mode}. {evidence}. The waitlist numbers in this run are [SIMULATED] sample "
+                  f"data ('{b.mock_scenario}').")
         if not live_web and len(self.ctx.sources) < self.gates.thresholds["G1_discover"]["min_sourced_claims"]:
             yield Say(f"Only {len(self.ctx.sources)} page(s) are saved in sources/. Gate 1 needs "
                       f"{self.gates.thresholds['G1_discover']['min_sourced_claims']} claims backed by real "
